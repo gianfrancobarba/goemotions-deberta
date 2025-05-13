@@ -1,0 +1,9 @@
+torch==2.1.2+cu121
+transformers==4.40.1
+datasets
+scikit-learn
+fastapi
+uvicorn
+pydantic
+python-dotenv
+--extra-index-url https://download.pytorch.org/whl/cu121

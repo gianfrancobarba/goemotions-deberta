@@ -1,0 +1,27 @@
+services:
+  model:
+    build:
+      context: .
+      dockerfile: docker/model/Dockerfile
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./model:/app/model
+    working_dir: /app/model
+    container_name: goemotions-model
+    command: [ "sleep", "infinity" ]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - model
+    volumes:
+      - ./api:/app/api
+    working_dir: /app/api
+    container_name: goemotions-api

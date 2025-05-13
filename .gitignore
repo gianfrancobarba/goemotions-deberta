@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Env/config
+.env
+*.log
+
+# Modelli e output
+*.pt
+*.bin
+*.h5
+*.ckpt
+*.onnx
+*.npz
+model/saved_models/
+
+# Dataset locali
+*.csv
+*.tsv
+*.json
+model/data/
+
+# Docker
+*.db
+*.sock
+*.pid
+
+# Jupyter
+notebooks/__pycache__/
+notebooks/.ipynb_checkpoints/
