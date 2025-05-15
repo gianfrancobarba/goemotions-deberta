@@ -1,69 +1,76 @@
 # model/src/preprocess.py
 
-"""
-Modulo di preprocessing per il dataset GoEmotions (semplified).
-
-Funzionalità:
-- Caricamento del dataset dalla libreria HuggingFace
-- Tokenizzazione del campo 'text' con il tokenizer DeBERTa v3 base
-- Conversione della colonna 'labels' da lista di indici a vettore multilabel binario
-- Restituzione di un oggetto DatasetDict pronto per la fase di training
-
-Dataset: go_emotions (config: "simplified")
-Modello: microsoft/deberta-v3-base
-"""
-
-from datasets import load_dataset, DatasetDict
+import os
+import logging
+from datasets import load_dataset, DatasetDict, Dataset
 from transformers import AutoTokenizer
+from config.config import CFG
 
-# Nome del modello HuggingFace
-MODEL_NAME = "microsoft/deberta-v3-base"
-
-# Numero totale di etichette nel dataset (GoEmotions = 28 classi)
-NUM_LABELS = 28
-
-# Lunghezza massima del padding per la tokenizzazione
-MAX_LENGTH = 128
+# Setup logging
+log_path = os.path.join(CFG.logs_dir, "preprocess.log")
+os.makedirs(CFG.logs_dir, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_path, mode='w'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 def load_and_preprocess_dataset() -> DatasetDict:
     """
-    Carica e preprocessa il dataset GoEmotions (semplified).
+    Carica e preprocessa il dataset GoEmotions (semplified), tokenizza e binarizza le etichette.
 
     Returns:
         DatasetDict: contenente i dati tokenizzati e le etichette multilabel binarie
     """
-    print("Caricamento del dataset GoEmotions (config: 'simplified')...")
-    dataset = load_dataset("go_emotions", "simplified")
+    logger.info("🔄 Caricamento del dataset GoEmotions (config: 'simplified')...")
+    dataset: DatasetDict = load_dataset("go_emotions", "simplified")
 
-    print("Inizializzazione del tokenizer DeBERTa...")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    logger.info("🔤 Inizializzazione del tokenizer DeBERTa...")
+    tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
 
     def preprocess(example):
-        # Tokenizzazione del testo
         encoding = tokenizer(
             example["text"],
             padding="max_length",
             truncation=True,
-            max_length=MAX_LENGTH
+            max_length=CFG.max_length
         )
-        # Inizializza un vettore binario di 28 zeri
-        multilabel_vector = [0] * NUM_LABELS
+        multilabel_vector = [0] * CFG.num_labels
         for idx in example["labels"]:
-            if 0 <= idx < NUM_LABELS:
+            if 0 <= idx < CFG.num_labels:
                 multilabel_vector[idx] = 1
         encoding["labels"] = multilabel_vector
         return encoding
 
-    print("Applicazione del preprocessing...")
-    tokenized_dataset = dataset.map(preprocess, batched=False)
+    logger.info("⚙️  Applicazione del preprocessing...")
+    tokenized_dataset: DatasetDict = dataset.map(preprocess, batched=False)
 
-    print("Preprocessing completato.")
+    logger.info("✅ Preprocessing completato.")
     return tokenized_dataset
 
 
-# Esecuzione standalone (sviluppo e debug)
+def save_tokenized_dataset(dataset: DatasetDict, save_dir: str):
+    """
+    Salva il dataset tokenizzato in formato HuggingFace Arrow.
+
+    Args:
+        dataset (DatasetDict): dataset tokenizzato
+        save_dir (str): path in cui salvare i file
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    logger.info(f"💾 Salvataggio del dataset preprocessato in {save_dir}...")
+    dataset.save_to_disk(save_dir)
+    logger.info("✅ Dataset salvato correttamente.")
+
+
+# Esecuzione standalone
 if __name__ == "__main__":
-    ds = load_and_preprocess_dataset()
-    print("Esempio dal dataset tokenizzato:")
-    print(ds["train"][0])
+    tokenized_ds = load_and_preprocess_dataset()
+    logger.info("📦 Primo esempio dal dataset tokenizzato:")
+    logger.info(tokenized_ds["train"][0])
+    save_tokenized_dataset(tokenized_ds, os.path.join(CFG.data_dir, "tokenized_dataset"))

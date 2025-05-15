@@ -7,8 +7,10 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTHONPATH=/app
     volumes:
       - ./model:/app/model
+      - ./config:/app/config
     working_dir: /app/model
     container_name: goemotions-model
     command: [ "sleep", "infinity" ]
