@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 
 def load_and_preprocess_dataset() -> DatasetDict:
     """
-    Carica e preprocessa il dataset GoEmotions (semplified), tokenizza e binarizza le etichette.
+    Carica e preprocessa il dataset GoEmotions (semplified), tokenizza e binarizza le etichette,
+    escludendo la classe 'neutral' (indice 27).
 
     Returns:
-        DatasetDict: contenente i dati tokenizzati e le etichette multilabel binarie
+        DatasetDict: contenente i dati tokenizzati e le etichette multilabel binarie (27 classi)
     """
     logger.info("🔄 Caricamento del dataset GoEmotions (config: 'simplified')...")
     dataset: DatasetDict = load_dataset("go_emotions", "simplified")
@@ -40,14 +41,17 @@ def load_and_preprocess_dataset() -> DatasetDict:
             truncation=True,
             max_length=CFG.max_length
         )
-        multilabel_vector = [0] * CFG.num_labels
+        # Escludi la classe 'neutral' (indice 27)
+        multilabel_vector = [0] * CFG.num_labels  # num_labels = 27
         for idx in example["labels"]:
-            if 0 <= idx < CFG.num_labels:
+            if 0 <= idx < CFG.num_labels:  # esclude idx == 27
                 multilabel_vector[idx] = 1
+            elif idx == 27:
+                logger.debug("⚠️ Etichetta 'neutral' esclusa dal vettore multilabel.")
         encoding["labels"] = multilabel_vector
         return encoding
 
-    logger.info("⚙️  Applicazione del preprocessing...")
+    logger.info("⚙️  Applicazione del preprocessing (senza 'neutral')...")
     tokenized_dataset: DatasetDict = dataset.map(preprocess, batched=False)
 
     logger.info("✅ Preprocessing completato.")

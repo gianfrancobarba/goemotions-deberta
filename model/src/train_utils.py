@@ -18,7 +18,6 @@ from transformers import (
 )
 
 from config.config import CFG
-from model.src.preprocess import CFG as PreprocessCFG  # Per NUM_LABELS, DEVICE
 from model.src.preprocess import load_and_preprocess_dataset
 
 
@@ -74,12 +73,24 @@ def save_model(trainer, tokenizer, model):
 
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
+
+    # 🔧 Patch per assicurarsi che il config sia salvato correttamente
+    model.config.num_labels = CFG.num_labels
+    model.config.problem_type = "multi_label_classification"
     model.config.save_pretrained(output_dir)
+
+    # Salvataggio dello stato del modello
     torch.save(model.state_dict(), os.path.join(output_dir, "deberta_model.pt"))
 
+    # ✅ FIX: serializzazione sicura dei soli attributi rilevanti
     config_path = os.path.join(output_dir, "training_config.json")
+    cfg_dict = {
+        k: getattr(CFG, k)
+        for k in dir(CFG)
+        if not k.startswith("__") and not callable(getattr(CFG, k))
+    }
     with open(config_path, "w") as f:
-        json.dump(vars(CFG), f, indent=4)
+        json.dump(cfg_dict, f, indent=4)
 
     print(f"✅ Modello salvato in {output_dir}")
     print(f"✅ Configurazione salvata in {config_path}")
@@ -90,19 +101,15 @@ def train_and_evaluate() -> float:
     Esegue il training con i parametri attuali in CFG e ritorna l'F1 micro sul validation set.
     Utile per Optuna.
     """
-    # Caricamento dati e pesi
     dataset = load_and_preprocess_dataset()
     pos_weight = compute_pos_weights(dataset["train"])
 
-    # Tokenizer e modello
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
     model = CustomMultiLabelModel(CFG.model_name, CFG.num_labels, pos_weight)
 
-    # Args per tuning
     args = TrainingArguments(
         output_dir=CFG.outputs_dir,
         per_device_train_batch_size=CFG.batch_size,
-        load_best_model_at_end=True,
         per_device_eval_batch_size=CFG.batch_size,
         num_train_epochs=CFG.num_epochs,
         learning_rate=CFG.learning_rate,
@@ -113,6 +120,7 @@ def train_and_evaluate() -> float:
         logging_strategy="no",
         disable_tqdm=True,
         fp16=True,
+        load_best_model_at_end=True,
         dataloader_num_workers=2,
         report_to="none",
     )

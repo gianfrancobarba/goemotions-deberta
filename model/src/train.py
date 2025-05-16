@@ -1,6 +1,7 @@
 # model/src/train.py
 
 import os
+import json
 import logging
 import torch
 from transformers import (
@@ -35,6 +36,7 @@ def train():
 
     logger.info("🔄 Caricamento del dataset GoEmotions (config: 'simplified')...")
     dataset = load_and_preprocess_dataset()
+    logger.info("✅ Preprocessing completato.")
 
     logger.info("📊 Calcolo pos_weight per BCEWithLogitsLoss...")
     pos_weight = compute_pos_weights(dataset["train"])
@@ -85,6 +87,19 @@ def train():
 
     logger.info("🏁 Avvio training...")
     trainer.train()
+
+    logger.info("📈 Calcolo delle metriche di valutazione finale...")
+    metrics = trainer.evaluate()
+
+    for k, v in metrics.items():
+        logger.info(f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}")
+
+    # Salva le metriche finali su file JSON
+    os.makedirs(CFG.logs_dir, exist_ok=True)
+    metrics_path = os.path.join(CFG.logs_dir, "final_metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=4)
+    logger.info(f"✅ Metriche salvate in {metrics_path}")
 
     logger.info("💾 Salvataggio modello e configurazione finale...")
     save_model(trainer, tokenizer, model)
