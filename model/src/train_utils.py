@@ -58,17 +58,18 @@ def compute_metrics(eval_preds):
     logits, labels = eval_preds
     predictions = (logits > 0.5).astype(int)
     return {
-        "f1": f1_score(labels, predictions, average="micro"),
-        "precision": precision_score(labels, predictions, average="micro"),
-        "recall": recall_score(labels, predictions, average="micro"),
+        "f1_micro": f1_score(labels, predictions, average="micro"),
+        "precision_micro": precision_score(labels, predictions, average="micro"),
+        "recall_micro": recall_score(labels, predictions, average="micro"),
     }
 
 
 def save_model(trainer, tokenizer, model):
     """
-    Salva il modello finale, tokenizer e configurazioni.
+    Salva il modello in formato compatibile HuggingFace.
+    Include: modello, tokenizer, configurazione, pesi (pytorch_model.bin), metriche.
     """
-    output_dir = CFG.model_dir
+    output_dir = trainer.args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
     trainer.save_model(output_dir)
@@ -77,23 +78,45 @@ def save_model(trainer, tokenizer, model):
     # 🔧 Patch per assicurarsi che il config sia salvato correttamente
     model.config.num_labels = CFG.num_labels
     model.config.problem_type = "multi_label_classification"
+
+    # 🔧 Patch per assicurarsi che il config sia salvato correttamente
+    model.config.num_labels = CFG.num_labels
+    model.config.problem_type = "multi_label_classification"
     model.config.save_pretrained(output_dir)
+    torch.save(model.state_dict(), os.path.join(output_dir, "pytorch_model.bin"))
 
-    # Salvataggio dello stato del modello
-    torch.save(model.state_dict(), os.path.join(output_dir, "deberta_model.pt"))
+    # Salva metriche (opzionale)
+    metrics = trainer.evaluate()
+    metrics_path = os.path.join(output_dir, "metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=4)
 
-    # ✅ FIX: serializzazione sicura dei soli attributi rilevanti
-    config_path = os.path.join(output_dir, "training_config.json")
-    cfg_dict = {
-        k: getattr(CFG, k)
-        for k in dir(CFG)
-        if not k.startswith("__") and not callable(getattr(CFG, k))
-    }
-    with open(config_path, "w") as f:
-        json.dump(cfg_dict, f, indent=4)
+    print(f"Modello salvato in {output_dir}")
+    print(f"Metriche salvate in {metrics_path}")
 
-    print(f"✅ Modello salvato in {output_dir}")
-    print(f"✅ Configurazione salvata in {config_path}")
+def get_training_args(output_dir: str) -> TrainingArguments:
+    return TrainingArguments(
+        output_dir=output_dir,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=32,
+        num_train_epochs=8,
+        learning_rate=1e-5,
+        warmup_steps=500,
+        weight_decay=0.01,
+        lr_scheduler_type="cosine",
+        evaluation_strategy="steps",
+        eval_steps=500,
+        save_strategy="steps",
+        save_steps=500,
+        save_total_limit=2,
+        logging_steps=100,
+        fp16=True,
+        load_best_model_at_end=True,
+        metric_for_best_model="f1_micro",
+        greater_is_better=True,
+        dataloader_num_workers=4,
+        report_to="none"
+    )
 
 
 def train_and_evaluate() -> float:
@@ -107,23 +130,8 @@ def train_and_evaluate() -> float:
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
     model = CustomMultiLabelModel(CFG.model_name, CFG.num_labels, pos_weight)
 
-    args = TrainingArguments(
-        output_dir=CFG.outputs_dir,
-        per_device_train_batch_size=CFG.batch_size,
-        per_device_eval_batch_size=CFG.batch_size,
-        num_train_epochs=CFG.num_epochs,
-        learning_rate=CFG.learning_rate,
-        weight_decay=CFG.weight_decay,
-        warmup_steps=100,
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
-        logging_strategy="no",
-        disable_tqdm=True,
-        fp16=True,
-        load_best_model_at_end=True,
-        dataloader_num_workers=2,
-        report_to="none",
-    )
+    # Args per tuning
+    args = get_training_args(CFG.model_dir)
 
     trainer = Trainer(
         model=model,
