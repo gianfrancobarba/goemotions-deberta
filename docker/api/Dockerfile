@@ -1,11 +1,17 @@
+# docker/api/Dockerfile
+
 FROM python:3.10-slim
 
-WORKDIR /app/api
+# Posizionamento di lavoro nel root del progetto
+WORKDIR /app
 
+# Copia requirements e installazione
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copia tutto il progetto (modello incluso)
 COPY . .
 
-CMD ["python", "app/main.py"]
+# Avvio di FastAPI su host e porta desiderati
+CMD ["uvicorn", "api.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

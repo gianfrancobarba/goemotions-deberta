@@ -75,11 +75,11 @@ def save_model(trainer, tokenizer, model):
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
 
-    # 🔧 Patch per assicurarsi che il config sia salvato correttamente
+    #  Patch per assicurarsi che il config sia salvato correttamente
     model.config.num_labels = CFG.num_labels
     model.config.problem_type = "multi_label_classification"
 
-    # 🔧 Patch per assicurarsi che il config sia salvato correttamente
+    #  Patch per assicurarsi che il config sia salvato correttamente
     model.config.num_labels = CFG.num_labels
     model.config.problem_type = "multi_label_classification"
     model.config.save_pretrained(output_dir)

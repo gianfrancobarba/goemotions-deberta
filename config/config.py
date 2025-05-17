@@ -18,6 +18,9 @@ class CFG:
     label2id = {label: i for i, label in enumerate(label_list)}
     id2label = {i: label for i, label in enumerate(label_list)}
 
+    # === THRESHOLD PREDICT ===
+    threshold = 0.1
+
     # === TOKENIZZAZIONE ===
     max_length = 128
 
