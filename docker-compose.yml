@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   model:
     build:
@@ -39,3 +41,6 @@ services:
       - "3000:80"
     depends_on:
       - api
+    volumes:
+      - ./client:/app/client
+    working_dir: /app/client
