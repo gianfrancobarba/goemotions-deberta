@@ -29,3 +29,13 @@ services:
       - ./config:/app/config
     working_dir: /app
     container_name: goemotions-api
+
+  client:
+    build:
+      context: .
+      dockerfile: docker/client/Dockerfile
+    container_name: goemotions-client
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
