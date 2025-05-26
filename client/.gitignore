@@ -18,10 +18,3 @@ yarn-error.log*
 .idea/
 .vscode/
 *.swp
-
-# lockfiles (se usi solo uno)
-package-lock.json
-# oppure:
-# yarn.lock
-# pnpm-lock.yaml
-

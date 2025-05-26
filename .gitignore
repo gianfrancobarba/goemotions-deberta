@@ -34,7 +34,9 @@ logs/
 # === DATASET LOCALI (opzionale) ===
 *.csv
 *.tsv
-*.json
+# Ignora solo i JSON dentro model/data/ e logs/
+model/data/*.json
+logs/*.json
 
 # === DOCKER/DB TEMP ===
 *.db
