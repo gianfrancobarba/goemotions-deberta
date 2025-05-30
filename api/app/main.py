@@ -5,7 +5,7 @@ from model.src.predict import predict_emotions
 
 app = FastAPI()
 
-# ✅ CORS: permetti richieste da qualsiasi origine (anche da altro container)
+# CORS: permetti richieste da qualsiasi origine (anche da altro container)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # oppure specifica "http://localhost:3000"

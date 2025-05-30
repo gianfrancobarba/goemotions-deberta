@@ -1,17 +1,16 @@
-# docker/api/Dockerfile
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
-FROM python:3.10-slim
 
-# Posizionamento di lavoro nel root del progetto
+# Installazioni base
+RUN apt-get update && apt-get install -y python3 python3-pip git
+
+# Copia codice
 WORKDIR /app
+COPY ../.. .
 
-# Copia requirements e installazione
-COPY requirements.txt .
+# Installa dipendenze
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copia tutto il progetto (modello incluso)
-COPY . .
-
-# Avvio di FastAPI su host e porta desiderati
+EXPOSE 8000
 CMD ["uvicorn", "api.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

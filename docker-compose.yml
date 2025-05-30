@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   model:
     build:
@@ -15,7 +13,8 @@ services:
       - ./config:/app/config
     working_dir: /app/model
     container_name: goemotions-model
-    command: ["sleep", "infinity"]
+    command: >
+      bash -c "mkdir -p /app/model/logs /app/model/data /app/model/models /app/model/outputs && sleep infinity"
 
   api:
     build:
@@ -25,6 +24,9 @@ services:
       - "8000:8000"
     depends_on:
       - model
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - PYTHONPATH=/app
     volumes:
       - ./api:/app/api
       - ./model:/app/model

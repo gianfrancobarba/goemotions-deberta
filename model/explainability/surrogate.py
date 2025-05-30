@@ -1,6 +1,15 @@
-import pandas as pd
-from typing import Dict
+# surrogate.py
 
+"""
+surrogate.py
+
+Costruisce surrogate models (Decision Tree) per spiegare
+le emozioni predette da DeBERTa. Ritorna un dict strutturato
+con regole, target e metriche.
+"""
+
+from typing import Any, Dict, List
+import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, export_text
 
 from perturber import generate_perturbations
@@ -10,60 +19,60 @@ from config_surrogate import THRESHOLD, N_PERTURBATIONS, MAX_DEPTH
 from metrics import fidelity_score, sparsity_score, stability_score
 
 
-def explain_with_surrogates(text: str) -> Dict[str, Dict]:
+def explain_with_surrogates(text: str) -> Dict[str, Any]:
     """
-    Addestra un albero surrogato locale per ciascuna emozione rilevata ≥ soglia.
-    Ritorna un dizionario con le regole e i target binari per ogni emozione.
+    Genera una spiegazione locale usando surrogate models.
+
+    Args:
+      text: frase da spiegare.
+
+    Returns:
+      {
+        "original_text": str,
+        "predictions": {emo: prob, ...},
+        "features": [ {feat: val, ...}, ... ],
+        "surrogates": {
+            emo: {
+               "rules": str,
+               "target_vector": [0,1,...],
+               "metrics": { "fidelity":float, ... }
+            }, ...
+        }
+      }
     """
-    # 1. Genera perturbazioni (inclusa la frase originale)
-    perturbed_texts = [text] + generate_perturbations(text, n=N_PERTURBATIONS)
+    # 1) perturbazioni
+    perturbed: List[str] = [text] + generate_perturbations(text, n=N_PERTURBATIONS)
 
-    # 2. Estrai feature interpretabili
-    df_features = extract_features(perturbed_texts)
+    # 2) features
+    df: pd.DataFrame = extract_features(perturbed, as_dict=False)
+    features_dicts: List[Dict] = extract_features(perturbed, as_dict=True)
 
-    # 3. Ottieni predizioni multilabel del modello
-    predictions = predict_all(perturbed_texts)
+    # 3) predizioni complete
+    preds: List[Dict[str, float]] = predict_all(perturbed)
+    base_preds = preds[0]
 
-    # 4. Emozioni da spiegare = quelle con score ≥ soglia nella frase originale
-    base_probs = predictions[0]
-    emotions_above_threshold = [emo for emo, score in base_probs.items() if score >= THRESHOLD]
+    # 4) emozioni da spiegare
+    emos: List[str] = [e for e, p in base_preds.items() if p >= THRESHOLD]
 
-    if not emotions_above_threshold:
-        return {}
+    # 5) costruzione target binari
+    surrogates: Dict[str, Any] = {}
+    X = df.values
+    feature_names = list(df.columns)
 
-    # 5. Costruisci target binari per ciascuna emozione da spiegare
-    emotion_targets = {
-        emotion: [int(p[emotion] >= THRESHOLD) for p in predictions]
-        for emotion in emotions_above_threshold
-    }
-
-    # 6. Addestra un albero per ciascuna emozione
-    result = {}
-    X = df_features.values
-    feature_names = list(df_features.columns)
-
-    for emotion in emotions_above_threshold:
-        y = emotion_targets[emotion]
-
+    for emo in emos:
+        y = [int(p[emo] >= THRESHOLD) for p in preds]
         clf = DecisionTreeClassifier(max_depth=MAX_DEPTH, random_state=0)
         clf.fit(X, y)
-
         rules = export_text(clf, feature_names=feature_names)
 
-        # === METRICHE specifiche per questo surrogato ===
+        # metriche
         fidelity = fidelity_score(clf, X, y)
         sparsity = sparsity_score(clf)
-        stability = stability_score(y, perturbed_texts)
+        stability = stability_score(y, perturbed)
 
-        print(f"\nSurrogato per '{emotion}':")
-        print(rules)
-        print(f"  Fidelity: {round(fidelity, 2)}")
-        print(f"  Sparsity: {round(sparsity, 2)}")
-        print(f"  Stability: {round(stability, 2)}")
-
-        result[emotion] = {
+        surrogates[emo] = {
+            "rules": rules,
             "target_vector": y,
-            "tree_rules": rules,
             "metrics": {
                 "fidelity": fidelity,
                 "sparsity": sparsity,
@@ -71,17 +80,18 @@ def explain_with_surrogates(text: str) -> Dict[str, Dict]:
             }
         }
 
-    return result
+    return {
+        "original_text": text,
+        "predictions": base_preds,
+        "features": features_dicts,
+        "surrogates": surrogates
+    }
 
 
 # ========================
 # TEST MANUALE
 # ========================
 if __name__ == "__main__":
-    test_input = "I finally did it, I'm so proud of myself!"
-    output = explain_with_surrogates(test_input)
-
-    print(f"\n[✓] Emozioni spiegate: {list(output.keys())}\n")
-    for emotion, info in output.items():
-        print(f"Surrogato per '{emotion}':")
-        print(info["tree_rules"])
+    import json
+    out = explain_with_surrogates("I am so happy and proud!")
+    print(json.dumps(out, indent=2))
