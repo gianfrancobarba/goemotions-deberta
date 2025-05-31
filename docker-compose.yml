@@ -4,7 +4,7 @@ services:
   model:
     build:
       context: .
-      dockerfile: docker/model/Dockerfile
+      dockerfile: docker/Dockerfile.model
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -13,6 +13,8 @@ services:
     volumes:
       - ./model:/app/model
       - ./config:/app/config
+      - ./data:/app/data     # <--- aggiunto: per accedere a raw/processed
+      - ./logs:/model/logs 
     working_dir: /app/model
     container_name: goemotions-model
     command: ["sleep", "infinity"]
@@ -20,22 +22,26 @@ services:
   api:
     build:
       context: .
-      dockerfile: docker/api/Dockerfile
+      dockerfile: docker/Dockerfile.api
+    environment:
+      - PYTHONPATH=/app
     ports:
       - "8000:8000"
     depends_on:
       - model
     volumes:
-      - ./api:/app/api
-      - ./model:/app/model
+      - ./app/api:/app/api
+      - ./app/model:/app/model
       - ./config:/app/config
+      - ./data:/app/data
     working_dir: /app
     container_name: goemotions-api
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
 
   client:
     build:
       context: .
-      dockerfile: docker/client/Dockerfile
+      dockerfile: docker/Dockerfile.client
     container_name: goemotions-client
     ports:
       - "3000:80"
