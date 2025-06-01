@@ -11,7 +11,7 @@ from typing import List, Dict
 import torch
 
 from model.src.predict import tokenizer, model, device, GOEMOTIONS_LABELS
-from config_surrogate import MAX_LEN
+from model.explainability.config_surrogate import MAX_LEN
 
 
 def predict_all(texts: List[str]) -> List[Dict[str, float]]:

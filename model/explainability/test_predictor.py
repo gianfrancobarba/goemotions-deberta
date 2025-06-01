@@ -1,5 +1,5 @@
 # test_predictor.py
-from predictor import predict_all
+from model.explainability.predictor import predict_all
 import json
 
 if __name__ == "__main__":

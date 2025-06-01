@@ -1,9 +1,4 @@
-"""
-config_surrogate.py
-
-Parametri globali per la pipeline di explainability locale.
-Tutte le costanti sono centralizzate qui per facilità di manutenzione.
-"""
+# File: model/explainability/config_surrogate.py
 
 import os
 from typing import List
@@ -11,26 +6,33 @@ from typing import List
 
 class CFG:
     # === SURROGATE MODEL PARAMETERS ===
-    # Threshold per considerare un'emozione rilevata
+    # Soglia per considerare un’emozione “attiva”
     THRESHOLD: float = 0.5
 
-    # Numero di perturbazioni da generare per ogni frase
-    N_PERTURBATIONS: int = 40
+    # Numero di perturbazioni generate per ogni frase
+    # (aumentato per migliorare la copertura del contesto e la fedeltà del surrogate)
+    N_PERTURBATIONS: int = 100
 
-    # Massima profondità dell'albero surrogato
-    MAX_DEPTH: int = 3
+    # Profondità massima degli alberi surrogate
+    # (aumentata per permettere albero più complesso e quindi potenzialmente più accurato)
+    MAX_DEPTH: int = 5
+
+    # Semi da usare per la creazione dell’ensemble di surrogate
+    # (seeds diversi per ogni Decision Tree)
+    SEEDS: List[int] = [42, 43, 44]
 
     # === MODEL PREDICTOR PARAMETERS ===
-    # Lunghezza massima dei token per il modello DeBERTa
+    # Lunghezza massima dei token per il modello DeBERTa (non cambiato)
     MAX_LEN: int = 128
 
     # === DEVICE ===
     DEVICE: str = "cuda" if os.environ.get("USE_CUDA", "1") == "1" else "cpu"
 
 
-# Per comodità, esportiamo anche le costanti in cima al modulo
+# Esportiamo le costanti per comodità
 THRESHOLD = CFG.THRESHOLD
 N_PERTURBATIONS = CFG.N_PERTURBATIONS
 MAX_DEPTH = CFG.MAX_DEPTH
+SEEDS = CFG.SEEDS
 MAX_LEN = CFG.MAX_LEN
 DEVICE = CFG.DEVICE

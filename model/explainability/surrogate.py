@@ -1,22 +1,20 @@
-# surrogate.py
-
 """
 surrogate.py
 
 Costruisce surrogate models (Decision Tree) per spiegare
 le emozioni predette da DeBERTa. Ritorna un dict strutturato
-con regole, target e metriche.
+con regole, target, metriche e importanza delle feature.
 """
 
 from typing import Any, Dict, List
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, export_text
 
-from perturber import generate_perturbations
-from features import extract_features
-from predictor import predict_all
-from config_surrogate import THRESHOLD, N_PERTURBATIONS, MAX_DEPTH
-from metrics import fidelity_score, sparsity_score, stability_score
+from model.explainability.perturber import generate_perturbations
+from model.explainability.features import extract_features
+from model.explainability.predictor import predict_all
+from model.explainability.config_surrogate import THRESHOLD, N_PERTURBATIONS, MAX_DEPTH
+from model.explainability.metrics import fidelity_score, sparsity_score, stability_score
 
 
 def explain_with_surrogates(text: str) -> Dict[str, Any]:
@@ -35,7 +33,8 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
             emo: {
                "rules": str,
                "target_vector": [0,1,...],
-               "metrics": { "fidelity":float, ... }
+               "metrics": { "fidelity":float, ... },
+               "feature_importances": { feat: importance, ... }
             }, ...
         }
       }
@@ -70,6 +69,9 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
         sparsity = sparsity_score(clf)
         stability = stability_score(y, perturbed)
 
+        # importa le feature importance dal decision tree
+        importances = dict(zip(feature_names, clf.feature_importances_))
+
         surrogates[emo] = {
             "rules": rules,
             "target_vector": y,
@@ -77,7 +79,8 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
                 "fidelity": fidelity,
                 "sparsity": sparsity,
                 "stability": stability
-            }
+            },
+            "feature_importances": importances
         }
 
     return {
@@ -94,4 +97,4 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
 if __name__ == "__main__":
     import json
     out = explain_with_surrogates("I am so happy and proud!")
-    print(json.dumps(out, indent=2))
+    print(json.dumps(out, indent=2, ensure_ascii=False))

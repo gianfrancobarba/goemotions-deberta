@@ -1,13 +1,41 @@
-# Fase 1: Build della web app
+# ----------------------
+# 1) Fase di build (Vite)
+# ----------------------
 FROM node:18-alpine AS build
 WORKDIR /app
+
+# 1a) Copio solo package.json e package-lock.json per installare le dipendenze
 COPY client/package*.json ./
-RUN npm install
-COPY client/ .
+RUN npm ci
+
+# 1b) Copio l’intero resto dei sorgenti (inclusi vite.config.js, src/, public/, ecc.)
+COPY client/ ./
+
+# 1c) Imposto NODE_ENV a production (ottimizza la build)
 ENV NODE_ENV=production
+
+# 1d) Lancio la build: Vite creerà /app/dist
 RUN npm run build
 
-# Fase 2: Serve con Nginx
+
+# ----------------------
+# 2) Fase di produzione (Nginx)
+# ----------------------
 FROM nginx:alpine
+
+# 2a) Copio tutto il contenuto di /app/dist (il risultato di `npm run build`)
+#     dentro la root di Nginx (/usr/share/nginx/html)
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# 2b) (facoltativo) Rimuovo il file di default.conf di Nginx se vuoi personalizzare il comportamento
+#     e poi posso copiarne uno mio dentro /etc/nginx/conf.d/.
+#     In questo esempio assumiamo che la configurazione di default vada bene.
+#     Se hai un tuo nginx.conf, puoi fare qualcosa tipo:
+#     RUN rm /etc/nginx/conf.d/default.conf
+#     COPY nginx.conf /etc/nginx/conf.d/
+
+# 2c) Esponi la porta 80
 EXPOSE 80
+
+# 2d) Comando di avvio
+CMD ["nginx", "-g", "daemon off;"]

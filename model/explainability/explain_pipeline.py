@@ -1,16 +1,8 @@
-# explain_pipeline.py
-
-"""
-explain_pipeline.py
-
-Orchestratore principale per l'explainability:
-invoca perturber, features, predictor e surrogate, e restituisce
-un unico dict con tutti i risultati.
-"""
+# File: model/explainability/explain_pipeline.py
 
 from typing import Dict, Any
-from surrogate import explain_with_surrogates
-
+from model.explainability.surrogate import explain_with_surrogates
+from model.explainability.verbalizer import verbalize_explanation
 
 def explain(text: str) -> Dict[str, Any]:
     """
@@ -20,17 +12,27 @@ def explain(text: str) -> Dict[str, Any]:
       text: frase da spiegare.
 
     Returns:
-      Dictionary con:
-        - original_text
-        - predictions
-        - features
-        - surrogates
+      Dict contenente:
+        - original_text: il testo originale
+        - predictions: dizionario emotion -> score
+        - features: lista di vettori di features
+        - surrogates: dizionario con surrogate model data
+        - explanations: dizionario emotion -> spiegazione strutturata
     """
-    return explain_with_surrogates(text)
+    # 1) Ottengo il result grezzo da explain_with_surrogates
+    result = explain_with_surrogates(text)
+
+    # 2) Aggiungo il testo originale (utile per i conteggi reali)
+    result["original_text"] = text
+
+    # 3) Genero le spiegazioni strutturate tramite verbalizer (compreso il simple_explanation)
+    result["explanations"] = verbalize_explanation(result)
+
+    return result
 
 
 # ========================
-# CLI DI ESEMPIO (non usata da API)
+# CLI DI ESEMPIO (non usata dall’API, ma utile per testing da linea di comando)
 # ========================
 if __name__ == "__main__":
     import argparse, json
@@ -40,4 +42,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = explain(args.text)
-    print(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2, ensure_ascii=False))
