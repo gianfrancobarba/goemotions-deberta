@@ -32,7 +32,7 @@ training:
 
 thresholding:
   default_threshold: 0.5
-  thresholds_path: "model/models/thresholds.json"    # ✅ coerente col campo sotto
+  thresholds_path: "model/models/thresholds.json"    # coerente col campo sotto
   batch_size: 32
   threshold_range:
     start: 0.1
@@ -108,8 +108,8 @@ api:
   port: 8000
 
 surrogate:
-  n_perturbations: 25
-  threshold: 0.5
+  n_perturbations: 40
+  threshold: 0.4
   max_depth: 3
 
 paths:

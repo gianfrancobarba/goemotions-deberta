@@ -3,7 +3,7 @@ body {
   margin: 0;
   background-color: #0e1117;
   font-family: 'Segoe UI', sans-serif;
-  color: white;
+  color: #f1f5f9;            /* testo più chiaro di default */
   height: 100vh;
   overflow: hidden;
 }
@@ -90,6 +90,7 @@ body {
   font-family: Georgia, serif;
   font-size: 1.8rem;
   margin-bottom: 0.5rem;
+  color: #e2e8f0;
 }
 
 .intro-description {
@@ -115,6 +116,7 @@ body {
 .chat-content::-webkit-scrollbar {
   width: 8px;
 }
+
 .chat-content::-webkit-scrollbar-thumb {
   background-color: #2c3342;
   border-radius: 10px;
@@ -168,10 +170,10 @@ body {
 
 .input-textarea {
   width: 100%;
-  background-color: #0e1117; /* uguale al body */
+  background-color: #0e1117;
   border: 1px solid #2c3342;
   border-radius: 8px;
-  padding: 0.75rem 3rem 0.75rem 1rem; /* padding destro per il bottone */
+  padding: 0.75rem 3rem 0.75rem 1rem;
   color: white;
   font-size: 0.9rem;
   font-family: inherit;
@@ -180,7 +182,7 @@ body {
   overflow-y: auto;
   min-height: 42px;
   max-height: 180px;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.02); /* sfumatura leggera */
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.02);
   scrollbar-width: thin;
   scrollbar-color: #2c3342 transparent;
 }
@@ -260,4 +262,223 @@ body {
   text-align: center;
   margin-top: 1rem;
 }
- 
+
+/* === BLOCCO DI SPIEGAZIONE (EXPLANATION) === */
+.explanation-section {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 16px 20px;    /* leggermente più padding */
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+/* Titolo del blocco */
+.explanation-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #e2e8f0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Ogni "card" di spiegazione di una singola emozione */
+.explanation-block {
+  margin-bottom: 1rem;
+  padding: 14px 16px;   /* più spazioso */
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  border: 1px solid #2c3342; /* bordo leggero per separare */
+}
+
+/* ====== Spiegazione Semplice (simple_explanation) ====== */
+.simple-explanation {
+  background-color: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;   /* preserva i newline interni */
+  border-left: 3px solid #2563eb; /* linea verticale di evidenziazione */
+}
+
+/* ====== Toggle Bottone ====== */
+.toggle-details {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  cursor: pointer;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color 0.15s ease;
+}
+
+.toggle-details:hover {
+  color: #93c5fd;  /* colore più chiaro su hover */
+}
+
+/* Aggiungo un'icona ▲/▼ */
+.toggle-details::before {
+  content: "▼";
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.toggle-details[aria-expanded="true"]::before {
+  content: "▲";
+}
+
+/* ====== Sezione Dettagli Avanzati ====== */
+.detailed-explanation {
+  background-color: rgba(0, 0, 0, 0.10);
+  padding: 14px 16px;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid #2c3342;
+}
+
+/* Ogni riga di dettaglio */
+.detail-item {
+  margin-bottom: 1rem;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.detail-item strong {
+  color: #f1f5f9;
+}
+
+/* ====== Tabella Feature Importances ====== */
+.imp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.imp-table th,
+.imp-table td {
+  padding: 6px 8px;
+  border: 1px solid #2c3342;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #f1f5f9;
+}
+
+.imp-table th {
+  background-color: #1f2633;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.imp-table tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Nota esplicativa sotto la tabella */
+.note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* ====== Regole surrogate ====== */
+.rules-block {
+  margin-top: 8px;
+}
+
+.rules-header {
+  font-size: 0.9rem;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.rules-pre {
+  background-color: #1a1f2b;
+  border: 1px solid #2c3342;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: #cbd5e1;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  /* Rimuovo eventuali margini interni troppo stretti */
+}
+
+/* === TOOLTIP CUSTOM STYLING (opzionale) === */
+.recharts-tooltip-wrapper {
+  max-width: 200px; /* evita overflow laterale su schermi stretti */
+}
+
+.recharts-tooltip-content {
+  background: #1a1f2b !important;
+  border: 1px solid #2c3342 !important;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.recharts-tooltip-item {
+  color: #f1f5f9 !important;
+  font-size: 0.9rem;
+}
+
+/* Riduco l’enfasi del cursore su hover */
+.recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ====== Stile per il BAR CHART ====== */
+/* Bordo leggermente arrotondato sulle barre */
+.recharts-bar-rectangle {
+  rx: 4px;
+  ry: 4px;
+  transition: opacity 0.2s ease;
+}
+
+/* Aggiungo un effetto hover sulle barre: leggermente più luminose */
+.recharts-bar-rectangle:hover {
+  opacity: 0.8;
+}
+
+/* ====== TYPING INDICATOR ====== */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  height: 1rem;
+  gap: 0.3rem;
+}
+
+.typing-indicator .dot {
+  width: 8px;
+  height: 8px;
+  background-color: #cbd5e1;
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: blink 1s infinite ease-in-out both;
+}
+
+.typing-indicator .dot1 {
+  animation-delay: 0s;
+}
+
+.typing-indicator .dot2 {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator .dot3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+  0%, 80%, 100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}

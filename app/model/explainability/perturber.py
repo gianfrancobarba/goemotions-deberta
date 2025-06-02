@@ -1,145 +1,179 @@
-# perturber.py
+# File: perturber.py
 
 """
-    Obiettivo: Generare un insieme di testi perturbati semanticamente simili a un commento dato,
-    per costruire un neighborhood locale attorno all’istanza da spiegare.
-    Questi testi saranno utilizzati per addestrare il modello surrogato interpretabile.
+perturber.py
+
+Genera perturbazioni testuali di un input:
+- dropout (rimozione casuale di parole)
+- masking (sostituzione di parole con <mask>)
+- shuffle (scambio casuale di alcune parole)
+- synonym replacement (sostituzione con sinonimi WordNet più accurati)
 """
 
 import random
 import re
-from typing import List
+from typing import List, Optional
+from nltk.corpus import wordnet
 
-import nltk
-from nltk.corpus import wordnet, stopwords
-from nltk import pos_tag
-
-# Scarica solo i pacchetti sicuri e necessari
-nltk.download("wordnet", quiet=True)
-nltk.download("omw-1.4", quiet=True)
-nltk.download("averaged_perceptron_tagger", quiet=True)
-nltk.download("stopwords", quiet=True)
-
-stop_words = set(stopwords.words("english"))
+# Strategie disponibili
+STRATEGIES = ["dropout", "masking", "shuffle", "synonym"]
 
 
-def generate_perturbations(text: str, n: int = 100, strategies: List[str] = None) -> List[str]:
+def dropout(text: str, p: float = 0.1) -> str:
     """
-    Genera una lista di frasi perturbate semanticamente simili.
-    Include sempre il testo originale come prima riga.
+    Rimuove casualmente ogni token con probabilità p.
     """
-    if strategies is None:
-        strategies = ["dropout", "masking", "shuffle", "synonym"]
+    tokens = text.split()
+    # Mantiene solo i token che non vengono “bucati”
+    return " ".join(t for t in tokens if random.random() > p)
 
-    perturbations = [text]
-    while len(perturbations) < n:
-        perturbed = apply_random_strategy(text, strategies)
-        if perturbed not in perturbations:
-            perturbations.append(perturbed)
-    return perturbations
+
+def masking(text: str, p: float = 0.15) -> str:
+    """
+    Con probabilità p sostituisce ciascun token con il token <mask>,
+    che DeBERTa (come BERT/Roberta) utilizza per il masked‐language modeling.
+    """
+    tokens = text.split()
+    masked = []
+    for tok in tokens:
+        if random.random() < p:
+            masked.append("<mask>")
+        else:
+            masked.append(tok)
+    return " ".join(masked)
+
+
+def shuffle(text: str, p: float = 0.1) -> str:
+    """
+    Scambia casualmente circa il 10% dei token:
+    calcola n_swaps = floor(len(tokens) * p) e spruzza n_swaps scambi tra posizioni a caso.
+    """
+    tokens = text.split()
+    n_swaps = max(1, int(len(tokens) * p))
+    idx = list(range(len(tokens)))
+    for _ in range(n_swaps):
+        i, j = random.sample(idx, 2)
+        tokens[i], tokens[j] = tokens[j], tokens[i]
+    return " ".join(tokens)
+
+
+def synonym_replacement(text: str, p: float = 0.1) -> str:
+    """
+    Con prob. p prova a sostituire ciascun token con un sinonimo ricavato da WordNet,
+    mantenendo la punteggiatura e rispettando la parte del discorso.
+    """
+    def get_pos_tag(word: str) -> Optional[str]:
+        """
+        Ritorna la parte del discorso (n, v, a, r) del primo synset trovato,
+        oppure None se non si trova nulla.
+        """
+        synsets = wordnet.synsets(word)
+        if not synsets:
+            return None
+        pos = synsets[0].pos()
+        if pos.startswith("n"):
+            return "n"
+        if pos.startswith("v"):
+            return "v"
+        if pos.startswith("a") or pos.startswith("s"):
+            return "a"
+        if pos.startswith("r"):
+            return "r"
+        return None
+
+    # Manteniamo la punteggiatura: split “intelligente” (non perdere punti o virgole)
+    tokens = re.findall(r"\w+|[^\w\s]", text, flags=re.UNICODE)
+    new_tokens = []
+
+    for tok in tokens:
+        # Applichiamo solo ai token alfanumerici (no punteggiatura)
+        if re.match(r"^\w+$", tok) and random.random() < p:
+            lower = tok.lower()
+            pos = get_pos_tag(lower)
+            if pos:
+                synsets = wordnet.synsets(lower, pos=pos)
+                # Raccolgo tutti i lemma-names (senza underscore) dello stesso POS
+                lemmas = [
+                    l.name().replace("_", " ")
+                    for s in synsets
+                    for l in s.lemmas()
+                    if "_" not in l.name()
+                ]
+                # Rimuovo duplicati e la parola stessa
+                lemmas = list({l for l in lemmas if l.lower() != lower})
+                if lemmas:
+                    choice = random.choice(lemmas)
+                    # Se il token originale era in maiuscolo, capitalizzo anche il sinonimo
+                    if tok[0].isupper():
+                        choice = choice.capitalize()
+                    new_tokens.append(choice)
+                    continue
+        # Altrimenti lascio il token invariato
+        new_tokens.append(tok)
+
+    # Ricostruisco la frase, rimettendo spazio dopo ogni parola
+    rebuilt = []
+    for tok in new_tokens:
+        if re.match(r"[^\w\s]", tok):
+            # se è solo punteggiatura, la attacco dopo la parola precedente
+            if rebuilt:
+                rebuilt[-1] = rebuilt[-1] + tok
+            else:
+                rebuilt.append(tok)
+        else:
+            rebuilt.append(tok + " ")
+    return "".join(rebuilt).strip()
 
 
 def apply_random_strategy(text: str, strategies: List[str]) -> str:
     """
-    Applica una strategia casuale scelta tra quelle fornite.
+    Sceglie a caso una strategia e la applica.
     """
-    strategy = random.choice(strategies)
-    if strategy == "dropout":
-        return word_dropout(text, p=random.uniform(0.3, 0.6))
-    elif strategy == "masking":
-        return word_masking(text, p=random.uniform(0.2, 0.4))
-    elif strategy == "shuffle":
-        return slight_shuffle(text)
-    elif strategy == "punctuation_removal":
-        return re.sub(r"[^\w\s]", "", text)
-    elif strategy == "synonym":
-        return synonym_replacement(text, p=0.5)
-    else:
-        return text
+    strat = random.choice(strategies)
+    if strat == "dropout":
+        return dropout(text)
+    if strat == "masking":
+        return masking(text)
+    if strat == "shuffle":
+        return shuffle(text)
+    if strat == "synonym":
+        return synonym_replacement(text)
+    raise ValueError(f"Unknown strategy: {strat}")
 
 
-def word_dropout(text: str, p: float) -> str:
-    words = text.split()
-    return " ".join([w for w in words if random.random() > p])
-
-
-def word_masking(text: str, p: float) -> str:
-    words = text.split()
-    masked = [("[MASK]" if random.random() < p else w) for w in words]
-    return " ".join(masked)
-
-
-def slight_shuffle(text: str) -> str:
-    words = text.split()
-    if len(words) <= 2:
-        return text
-    i = random.randint(0, len(words) - 2)
-    words[i], words[i + 1] = words[i + 1], words[i]
-    return " ".join(words)
-
-
-def get_wordnet_pos(treebank_tag):
+def generate_perturbations(
+    text: str,
+    n: int,
+    strategies: Optional[List[str]] = None,
+    seed: Optional[int] = None
+) -> List[str]:
     """
-    Mappa i tag POS da Treebank a WordNet.
+    Genera fino a n perturbazioni uniche di testo.
+    Usa un contatore max_tries per evitare loop infiniti.
+
+    Args:
+      text: frase originale
+      n: numero di perturbazioni desiderate
+      strategies: lista di strategie (default STRATEGIES)
+      seed: seed opzionale per riproducibilità
+
+    Returns:
+      Lista di perturbazioni uniche (escluse eventuali ripetizioni e l’originale).
     """
-    if treebank_tag.startswith("J"):
-        return wordnet.ADJ
-    elif treebank_tag.startswith("V"):
-        return wordnet.VERB
-    elif treebank_tag.startswith("N"):
-        return wordnet.NOUN
-    elif treebank_tag.startswith("R"):
-        return wordnet.ADV
-    else:
-        return None
+    if seed is not None:
+        random.seed(seed)
 
+    if strategies is None:
+        strategies = STRATEGIES
 
-def synonym_replacement(text: str, p: float = 0.3) -> str:
-    """
-    Sostituisce p% delle parole (non-stopword, alfabetiche) con sinonimi reali.
-    Compatibile con NLTK >= 3.8.2 (senza punkt).
-    """
-    # Tokenizzazione compatibile: solo parole alfabetiche
-    tokens = re.findall(r"\b\w+\b", text)
-    tagged = pos_tag(tokens, lang="eng")
+    perturbations = set()
+    tries = 0
+    max_tries = n * len(strategies) * 3
 
-    new_tokens = []
-    for i, (word, tag) in enumerate(tagged):
-        wn_tag = get_wordnet_pos(tag)
-        if wn_tag is None or word.lower() in stop_words or not word.isalpha():
-            new_tokens.append(word)
-            continue
+    while len(perturbations) < n and tries < max_tries:
+        new_text = apply_random_strategy(text, strategies)
+        if new_text != text:
+            perturbations.add(new_text)
+        tries += 1
 
-        if random.random() < p:
-            synonyms = wordnet.synsets(word, pos=wn_tag)
-            if not synonyms:
-                new_tokens.append(word)
-                continue
-
-            lemmas = set()
-            for syn in synonyms:
-                for l in syn.lemmas():
-                    lemma = l.name().replace("_", " ")
-                    if lemma.lower() != word.lower():
-                        lemmas.add(lemma)
-
-            if lemmas:
-                replacement = random.choice(list(lemmas))
-                new_tokens.append(replacement)
-            else:
-                new_tokens.append(word)
-        else:
-            new_tokens.append(word)
-
-    return " ".join(new_tokens)
-
-
-# =======================
-# TEST DI FUNZIONAMENTO
-# =======================
-if __name__ == "__main__":
-    text = "I finally did it, I'm so proud of myself!"
-    print("\n=== TEST generate_perturbations() ===\n")
-    perturbed = generate_perturbations(text, n=10, strategies=["dropout", "masking", "shuffle", "synonym"])
-    for i, t in enumerate(perturbed):
-        print(f"{i}: {t}")
+    return list(perturbations)

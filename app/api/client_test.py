@@ -9,6 +9,6 @@ while True:
 
     response = requests.post(url, json={"text": text})
     if response.status_code == 200:
-        print("✨ Emozioni rilevate:", response.json()["emotions"])
+        print("Emozioni rilevate:", response.json()["emotions"])
     else:
-        print("❌ Errore:", response.text)
+        print("Errore:", response.text)
