@@ -1,11 +1,11 @@
-# features.py
+# File: features.py
 
 """
 features.py
 
 Estrazione di feature interpretabili da una lista di testi:
 - Bag-of-Words locale
-- Conteggio di parole emozionali (NRC)
+- Conteggio di parole emozionali (NRC) suddivise per categoria
 - Negazioni
 - Statistiche strutturali (lunghezza, stopword ratio, punteggiatura)
 """
@@ -17,7 +17,7 @@ from typing import List, Dict, Set, Optional, Union
 import pandas as pd
 from nltk.corpus import stopwords
 
-# Non scarica nulla in runtime; presuppone che i dati nltk siano già installati
+
 stop_words = set(stopwords.words("english"))
 NEGATION_WORDS = {"not", "never", "no", "none", "nobody", "nothing", "neither", "nor"}
 
@@ -29,6 +29,10 @@ def load_nrc_lexicon(
     """
     Carica il dizionario NRC da file.
     Ritorna: mapping emotion -> set(parole).
+
+    Args:
+      filepath: percorso al file NRC.
+      selected_emotions: lista di emozioni da includere; se None, include tutte.
     """
     lexicon: Dict[str, Set[str]] = {}
     with open(filepath, "r", encoding="utf-8") as f:
@@ -56,24 +60,28 @@ def extract_features(
     Returns:
       DataFrame o lista di dict con:
         - bow_<term>: 0/1 per ogni parola del vocabolario locale
-        - n_emotion_words, has_negation, length, n_exclamations,
-          n_questions, stopword_ratio
+        - emo_<emotion>_count: numero di parole del lessico NRC per ciascuna emozione
+        - n_emotion_words: somma di tutti i conteggi emozionali
+        - has_negation: 0/1 se c'è almeno una negazione
+        - length: numero di token puliti
+        - n_exclamations: numero di '!'
+        - n_questions: numero di '?'
+        - stopword_ratio: rapporto tra stopword e lunghezza del testo
     """
-    # Caricamento lessico NRC
+    # 1) Caricamento lessico NRC (tutte le emozioni)
     lex_path = os.path.join(
         os.path.dirname(__file__),
         "lexicon",
         "NRC-Emotion-Lexicon-Wordlevel-v0.92.txt"
     )
-    selected = ["anger", "fear", "joy", "sadness", "disgust", "surprise",
-                "trust", "anticipation"]
-    nrc = load_nrc_lexicon(lex_path, selected)
+    nrc = load_nrc_lexicon(lex_path, selected_emotions=None)
 
-    # Costruzione vocabolario locale e tokenizzazione
+    # 2) Costruzione vocabolario locale e tokenizzazione
     vocab: Set[str] = set()
     tokenized: List[List[str]] = []
     for txt in texts:
         toks = re.findall(r"\b\w+\b", txt.lower())
+        # tolgo punteggiatura e stopword (ma mantengo negazioni)
         clean = [t for t in toks if t.isalpha() and (t not in stop_words or t in NEGATION_WORDS)]
         vocab.update(clean)
         tokenized.append(clean)
@@ -82,33 +90,43 @@ def extract_features(
     rows: List[Dict[str, Union[int, float]]] = []
 
     for txt, tokens in zip(texts, tokenized):
-        # BOW
+        # 2.1) BOW (Bag‐of‐Words locale)
         bow_feats = {f"bow_{w}": int(w in tokens) for w in vocab_list}
 
-        # Semantiche (NRC)
-        emo_count = 0
-        for w in tokens:
-            if any(w in words for words in nrc.values()):
-                emo_count += 1
+        # 2.2) Conteggio parole emozionali per ciascuna emozione NRC
+        #      e somma totale di parole emozionali (n_emotion_words)
+        emo_counts: Dict[str, int] = {}
+        total_emo = 0
+        for emo_label, lex_words in nrc.items():
+            count_this = sum(1 for w in tokens if w in lex_words)
+            emo_counts[f"emo_{emo_label}_count"] = count_this
+            total_emo += count_this
 
-        # Negazione
+        # 2.3) Negazioni
         has_neg = int(any(w in NEGATION_WORDS for w in tokens))
 
-        # Strutturali
+        # 2.4) Statistiche strutturali
         length = len(tokens)
         n_excl = txt.count("!")
         n_q = txt.count("?")
-        stop_ratio = sum(1 for w in re.findall(r"\b\w+\b", txt.lower())
-                         if w in stop_words) / max(length, 1)
+        # stopword_ratio = stopword / lunghezza (case-insensitive)
+        stop_ratio = (
+            sum(1 for w in re.findall(r"\b\w+\b", txt.lower()) if w in stop_words)
+            / max(length, 1)
+        )
 
-        row = {
+        row: Dict[str, Union[int, float]] = {
             **bow_feats,
-            "n_emotion_words": emo_count,
+            # Feature emozionali
+            "n_emotion_words": total_emo,
+            **emo_counts,
+            # Negazioni
             "has_negation": has_neg,
+            # Strutturali
             "length": length,
             "n_exclamations": n_excl,
             "n_questions": n_q,
-            "stopword_ratio": round(stop_ratio, 3)
+            "stopword_ratio": round(stop_ratio, 3),
         }
         rows.append(row)
 

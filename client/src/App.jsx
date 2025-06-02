@@ -299,14 +299,16 @@ export default function App() {
 
                                 return (
                                     <div key={toggleKey} className="explanation-block">
-                                      {/* ===== 1) Simple explanation ===== */}
-                                      <div className="simple-explanation">
-                                        {detail.simple_explanation}
-                                      </div>
+                                      {/* ===== 1) Simple explanation (multilinea) ===== */}
+                                      <pre className="simple-explanation">
+{detail.simple_explanation}
+                            </pre>
+                                      {/* Notare l’uso di <pre> per preservare i newline */}
 
                                       {/* ===== 2) Bottone per mostrare/nascondere dettagli ===== */}
                                       <button
                                           className="toggle-details"
+                                          aria-expanded={showDetails[toggleKey] ? "true" : "false"}
                                           onClick={() =>
                                               setShowDetails((prev) => ({
                                                 ...prev,
@@ -315,8 +317,8 @@ export default function App() {
                                           }
                                       >
                                         {showDetails[toggleKey]
-                                            ? "▲ Nascondi dettagli avanzati"
-                                            : "▼ Mostra dettagli avanzati"}
+                                            ? "Nascondi dettagli avanzati"
+                                            : "Mostra dettagli avanzati"}
                                       </button>
 
                                       {/* ===== 3) Sezione dettagli avanzati ===== */}
@@ -350,8 +352,8 @@ export default function App() {
                                                 </tbody>
                                               </table>
                                               <small className="note">
-                                                Il “peso” indica quanto ciascuna
-                                                caratteristica ha influito sulla decisione.
+                                                Il “peso” indica quanto ciascuna caratteristica ha
+                                                influito sulla decisione.
                                               </small>
                                             </div>
 
@@ -373,9 +375,7 @@ export default function App() {
                                                       </strong>
                                                     </li>
                                                 ) : (
-                                                    <li>
-                                                      Nessuna parola emotiva rilevata
-                                                    </li>
+                                                    <li>Nessuna parola emotiva rilevata</li>
                                                 )}
 
                                                 {detail.stopword_ratio !== null && (
@@ -416,8 +416,7 @@ export default function App() {
                                             {/* 3.4) Metriche surrogate */}
                                             <div className="detail-item">
                                               <strong>
-                                                Metriche surrogate (decision tree
-                                                semplificato):
+                                                Metriche surrogate (decision tree semplificato):
                                               </strong>
                                               <ul>
                                                 {detail.metrics.fidelity !== null && (
@@ -465,7 +464,7 @@ export default function App() {
                                                     Regole surrogate (decision tree):
                                                   </strong>
                                                   <pre className="rules-pre">
-                                      {detail.parsed_rules}
+{detail.parsed_rules}
                                     </pre>
                                                   <small className="note">
                                                     Struttura dell’albero surrogate.

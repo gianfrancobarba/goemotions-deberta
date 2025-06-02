@@ -1,3 +1,5 @@
+# File: model/explainability/surrogate.py
+
 """
 surrogate.py
 
@@ -39,37 +41,42 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
         }
       }
     """
-    # 1) perturbazioni
+    # 1) Genero n perturbazioni + testo originale
     perturbed: List[str] = [text] + generate_perturbations(text, n=N_PERTURBATIONS)
 
-    # 2) features
+    # 2) Estraggo feature interpretabili per ogni variante
     df: pd.DataFrame = extract_features(perturbed, as_dict=False)
     features_dicts: List[Dict] = extract_features(perturbed, as_dict=True)
 
-    # 3) predizioni complete
+    # 3) Calcolo predizioni di DeBERTa per ogni variante
     preds: List[Dict[str, float]] = predict_all(perturbed)
-    base_preds = preds[0]
+    base_preds = preds[0]  # predizione sul testo originale
 
-    # 4) emozioni da spiegare
+    # 4) Seleziono quali emozioni spiegare (quelle con probabilità ≥ soglia)
     emos: List[str] = [e for e, p in base_preds.items() if p >= THRESHOLD]
 
-    # 5) costruzione target binari
+    # 5) Costruisco i surrogate model (decision tree) per ciascuna emozione
     surrogates: Dict[str, Any] = {}
     X = df.values
     feature_names = list(df.columns)
 
     for emo in emos:
+        # 5.1) Vettore target binario: 1 se la variante ha prob ≥ soglia, altrimenti 0
         y = [int(p[emo] >= THRESHOLD) for p in preds]
+
+        # 5.2) Alleno un DecisionTreeClassifier con profondità massima MAX_DEPTH
         clf = DecisionTreeClassifier(max_depth=MAX_DEPTH, random_state=0)
         clf.fit(X, y)
+
+        # 5.3) Estraggo le regole testuali dal decision tree
         rules = export_text(clf, feature_names=feature_names)
 
-        # metriche
+        # 5.4) Calcolo le metriche di qualità del surrogate
         fidelity = fidelity_score(clf, X, y)
         sparsity = sparsity_score(clf)
         stability = stability_score(y, perturbed)
 
-        # importa le feature importance dal decision tree
+        # 5.5) Prendo le importances di ciascuna feature (molte saranno zero)
         importances = dict(zip(feature_names, clf.feature_importances_))
 
         surrogates[emo] = {

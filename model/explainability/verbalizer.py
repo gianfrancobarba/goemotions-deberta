@@ -4,11 +4,10 @@ import os
 from typing import Dict, Any, List, Set
 
 # ————————————————————————————————————————————
-# 1) TENTATIVO DI CARICARE AUTOMATICAMENTE IL LESSICO NRC
+# 1) CARICAMENTO DELL’INTERO LESSICO NRC
 #
-# Se hai già eseguito download_nrc_lexicon.py e il file si trova in
-#     model/explainability/lexicon/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt
-# allora lo carichiamo per costruire EMOTION_VOCAB dinamicamente.
+# Scarica tutte le parole del NRC Emotion Lexicon che hanno
+# score > 0, così da coprire tutte le emozioni (non più solo un sottoinsieme).
 LEXICON_PATH = os.path.join(
     os.path.dirname(__file__),
     "lexicon",
@@ -18,13 +17,7 @@ LEXICON_PATH = os.path.join(
 def load_nrc_vocab(path: str) -> Set[str]:
     """
     Legge il file NRC-Emotion-Lexicon (word-level) e restituisce
-    l’insieme di tutte le parole che compaiono in almeno una riga con score 1.
-    Il formato tipico (riga) è:
-      abandoned	anger	1
-      abandoned	negative	1
-      abandoned	sadness	1
-      abandonment	sadness	1
-    Prende solo la prima colonna (la parola).
+    l’insieme di tutte le parole che compaiono con score > 0.
     """
     vocab: Set[str] = set()
     if not os.path.exists(path):
@@ -40,16 +33,15 @@ def load_nrc_vocab(path: str) -> Set[str]:
                 score = int(score_str)
             except ValueError:
                 continue
-            # Se score=1 (o >0) significa che “word” è associata a un’emozione
+            # Se score > 0, la parola è associata a un’emozione
             if score > 0:
                 vocab.add(word.lower())
     return vocab
 
-# Costruisco EMOTION_VOCAB all’avvio, se il file esiste
+# Costruiamo EMOTION_VOCAB all’avvio, se il file esiste:
 EMOTION_VOCAB: Set[str] = load_nrc_vocab(LEXICON_PATH)
 
-# Se per qualche motivo il lessico non si trova o è vuoto,
-# posso aggiungere a mano qualche parola di fallback.
+# Se il lessico non viene trovato (es. in sviluppo), forniamo un fallback
 if not EMOTION_VOCAB:
     EMOTION_VOCAB = {
         "joy", "sad", "love", "anger", "fear", "surprise", "disgust",
@@ -57,13 +49,13 @@ if not EMOTION_VOCAB:
         "amusement", "optimism", "admiration", "approval", "caring",
         "excitement", "contentment", "embarrassment", "nervousness",
         "disappointment", "remorse", "annoyance", "distressing",
-        "lamentable", "proud",  # almeno questi…
+        "lamentable", "proud",  # e altre parole di fallback
     }
 # ————————————————————————————————————————————
 
 def count_words(text: str) -> int:
     """
-    Contare quante parole (space-separated) ci sono nel testo.
+    Conta quante parole (space-separated) ci sono nel testo.
     """
     return len(text.strip().split())
 
@@ -73,14 +65,16 @@ def count_exclamations(text: str) -> int:
 def count_questions(text: str) -> int:
     return text.count("?")
 
+
 def extract_emotion_words(text: str, emotion_vocab: Set[str]) -> List[str]:
     """
-    Ritorna la lista di token *presenti nel testo* che figurano in emotion_vocab.
+    Ritorna la lista di token REALMENTE presenti nel testo che appartengono a EMOTION_VOCAB.
     Rimuove punteggiatura di contorno e converte tutto in minuscolo.
     Mantiene l’ordine di comparsa nel testo.
     """
     tokens = [w.lower().strip(".,!?:;\"'()[]") for w in text.split()]
     return [tok for tok in tokens if tok in emotion_vocab]
+
 
 def parse_rules(rules_str: str) -> str:
     """
@@ -91,7 +85,7 @@ def parse_rules(rules_str: str) -> str:
     parsed_lines: List[str] = []
 
     for line in lines:
-        # Il numero di '|' prima di '---' corrisponde al livello di indentazione
+        # Ogni '|' prima di '---' indica un livello di indentazione
         depth = line.count("|")
         if "---" in line:
             content = line.split("---", 1)[1].strip()
@@ -100,13 +94,15 @@ def parse_rules(rules_str: str) -> str:
 
         # Rimuovo doppi spazi e normalizzo
         content = content.replace("  ", " ").strip()
-        # Tolgo prefisso "bow_" per rendere più leggibili i nomi delle feature
+        # Rimuovo prefisso "bow_" per rendere i nomi delle feature leggibili
         content = content.replace("bow_", "")
 
+        # depth-1 livelli di indentazione (2 spazi ciascuno)
         indent = "  " * max(0, depth - 1)
         parsed_lines.append(f"{indent}- {content}")
 
     return "\n".join(parsed_lines)
+
 
 def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -123,7 +119,7 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
     surrogates     = result.get("surrogates", {})    # { emo: {rules, metrics, importances}, … }
     original_text  = result.get("original_text", "")
 
-    # Se esiste, prendo il primo feature vector (potrebbe avere n_emotion_words, stopword_ratio…)
+    # Se esiste, prendo il primo feature vector
     base_feats = features_list[0] if len(features_list) > 0 else {}
 
     for emo, data in surrogates.items():
@@ -144,7 +140,7 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         # ————————————————————————————————————————————
 
         # ————————————————————————————————————————————
-        # 2) Conteggi reali dal testo (override a eventuali base_feats)
+        # 2) Conteggi reali dal testo (override di eventuali base_feats)
         word_count = count_words(original_text)
         n_excl     = count_exclamations(original_text)
         n_qst      = count_questions(original_text)
@@ -157,17 +153,17 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         # ————————————————————————————————————————————
 
         # ————————————————————————————————————————————
-        # 4) Estrazione di parole emotive REALI presenti nel testo
+        # 4) Estrazione delle parole emotive REALI presenti nel testo
         emotion_words = extract_emotion_words(original_text, EMOTION_VOCAB)
 
-        # Se non ne trovo e ho top_keywords, uso il fallback con la top_keywords[0]
+        # Se non trovo alcuna parola emotiva ma ho almeno una top_keyword,
+        # uso la prima di quelle come “fallback”
         if not emotion_words and len(top_keywords) > 0:
             emotion_words = [top_keywords[0]]
         # ————————————————————————————————————————————
 
         # ————————————————————————————————————————————
-        # 5) Costruisco la “spiegazione semplice” come elenco di frasi,
-        #    separando ogni frase con un newline per maggiore leggibilità.
+        # 5) COSTRUZIONE DELLA “SPIEGAZIONE SEMPLICE” (multilinea)
         frasi: List[str] = []
         emocapital = emo.upper()
 
@@ -192,7 +188,7 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         if has_neg:
             frasi.append("Nel testo è presente almeno una negazione (‘non’).")
 
-        # e) Punti esclamativi/interrogativi
+        # e) Punti esclamativi / interrogativi
         if n_excl > 0:
             frasi.append(
                 f"Sono presenti {n_excl} {'punto esclamativo' if n_excl == 1 else 'punti esclamativi'}."
@@ -227,12 +223,12 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
                 f"il modello a predire “{emocapital}”."
             )
 
-        # Uso il newline per separare meglio le frasi nella semplice spiegazione
+        # Uso il newline per separare meglio le frasi nella spiegazione semplice
         simple_explanation = "\n".join(frasi)
         # ————————————————————————————————————————————
 
         # ————————————————————————————————————————————
-        # 6) Costruisco la lista di tutte le feature_importances (feat, peso) con imp > 0
+        # 6) Tutte le feature_importances ordinate (feat senza “bow_” + peso)
         all_imps = sorted(
             [
                 (feat.replace("bow_", ""), round(imp, 4))
@@ -250,12 +246,12 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         # ————————————————————————————————————————————
 
         # ————————————————————————————————————————————
-        # 8) Creo il dizionario che conterrà ogni dettaglio avanzato/tecnico
+        # 8) Costruisco il dizionario con tutti i dettagli avanzati/tecnici
         explanations[emo] = {
             # 8.1) Spiegazione semplice (multilinea)
             "simple_explanation": simple_explanation,
 
-            # 8.2) Parole emotive (dalla lista estratta + fallback)
+            # 8.2) Parole emotive reali estratte (o fallback)
             "emotion_words": emotion_words,
 
             # 8.3) Campi tecnici quantitativi
@@ -276,7 +272,7 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
                 "stability": round(metrics.get("stability", 0.0), 2),
             },
 
-            # 8.5) Feature importances ordinate
+            # 8.5) Feature importances ordinate (lista di tuple)
             "all_importances": all_imps,
 
             # 8.6) Le regole surrogate “raw” e “parsed”
