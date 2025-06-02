@@ -7,8 +7,8 @@ from collections import defaultdict
 
 from transformers import AutoTokenizer, AutoConfig
 
-from app.config.loader import CFG
-from app.model.training.train_utils import CustomMultiLabelModel
+from config.loader import CFG
+from model.training.train_utils import CustomMultiLabelModel
 
 # === Logging ===
 logging.basicConfig(

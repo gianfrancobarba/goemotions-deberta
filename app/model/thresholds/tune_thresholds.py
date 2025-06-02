@@ -7,9 +7,9 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig, default_data_collator
 
-from app.config.loader import CFG
-from app.utils.preprocess import load_and_preprocess_dataset
-from app.model.training.train_utils import CustomMultiLabelModel
+from config.loader import CFG
+from utils.preprocess import load_and_preprocess_dataset
+from model.training.train_utils import CustomMultiLabelModel
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

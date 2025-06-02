@@ -5,7 +5,7 @@ from typing import Dict, List, Any
 from datasets import Dataset, DatasetDict
 from transformers import AutoTokenizer
 
-from app.config.loader import CFG
+from config.loader import CFG
 
 # Setup logging
 os.makedirs(CFG.paths.logs, exist_ok=True)

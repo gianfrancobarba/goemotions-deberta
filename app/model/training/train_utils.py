@@ -15,8 +15,8 @@ from transformers import (
     EarlyStoppingCallback,
 )
 
-from app.config.loader import CFG
-from app.utils.preprocess import load_and_preprocess_dataset
+from config.loader import CFG
+from utils.preprocess import load_and_preprocess_dataset
 
 
 class CustomMultiLabelModel(nn.Module):

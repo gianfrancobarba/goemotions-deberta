@@ -6,9 +6,9 @@ import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig
 
-from app.config.loader import CFG
-from app.utils.preprocess import load_and_preprocess_dataset
-from app.model.training.train_utils import CustomMultiLabelModel
+from config.loader import CFG
+from utils.preprocess import load_and_preprocess_dataset
+from model.training.train_utils import CustomMultiLabelModel
 
 # Configura logging
 logging.basicConfig(

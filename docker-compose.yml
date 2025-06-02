@@ -14,7 +14,7 @@ services:
       - ./app/model:/app/model
       - ./app/config:/app/config
       - ./data:/app/data
-      - ./model/models:/app/model/models
+      - ./model/models:/app/model/models  # ✅ volume condiviso
     working_dir: /app/model
     container_name: goemotions-model
     command: ["sleep", "infinity"]
@@ -32,6 +32,7 @@ services:
     volumes:
       - ./app:/app
       - ./data:/app/data
+      - ./model/models:/app/model/models  # ✅ volume condiviso
     working_dir: /app
     container_name: goemotions-api
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000

@@ -8,9 +8,9 @@ from transformers import (
     set_seed
 )
 
-from app.config.loader import CFG
-from app.utils.preprocess import load_and_preprocess_dataset
-from app.model.training.train_utils import (
+from config.loader import CFG
+from utils.preprocess import load_and_preprocess_dataset
+from model.training.train_utils import (
     compute_pos_weights,
     compute_metrics,
     CustomMultiLabelModel,

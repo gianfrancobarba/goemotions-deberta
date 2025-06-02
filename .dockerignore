@@ -1,0 +1,49 @@
+# === PYTHON ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.ipynb_checkpoints/
+
+# === IDE ===
+.vscode/
+.idea/
+*.iml
+
+# === VIRTUAL ENV ===
+.venv/
+env/
+venv/
+
+# === MODELLI ADDDESTRATI E CHECKPOINTS ===
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+*.onnx
+*.npz
+*.h5
+models/
+model/models/
+
+# === OUTPUT TEMPORANEI E LOGS ===
+logs/
+*.log
+
+# === DATASET LOCALI ===
+*.csv
+*.tsv
+data/
+model/data/
+data/raw/
+data/processed/
+
+# === DOCKER/DB TEMP ===
+*.db
+*.sock
+*.pid
+
+# === NOTEBOOKS ===
+notebooks/
+notebooks/__pycache__/
+notebooks/.ipynb_checkpoints/
