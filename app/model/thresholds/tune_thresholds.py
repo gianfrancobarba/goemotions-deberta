@@ -1,5 +1,3 @@
-# model/src/tune_thresholds.py
-
 import os
 import json
 import numpy as np
@@ -10,30 +8,26 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig, default_data_collator
 
 from app.config.loader import CFG
-from utils.preprocess import load_and_preprocess_dataset
-from model.training.train_utils import CustomMultiLabelModel
+from app.utils.preprocess import load_and_preprocess_dataset
+from app.model.training.train_utils import CustomMultiLabelModel
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def compute_optimal_thresholds(model, dataset):
     batch_size = CFG.thresholding.batch_size
     t_cfg = CFG.thresholding.threshold_range
     thresholds = np.arange(t_cfg.start, t_cfg.stop + t_cfg.step, t_cfg.step)
-    """
-    Calcola i migliori threshold per ciascuna etichetta in base all'F1 score.
-    Restituisce:
-      - best_thresholds: dict {indice_label: threshold}
-      - metrics_df: dataframe con precision, recall, f1 per ogni label
-    """
+
     model.eval()
-    model.to(CFG["device"])
+    model.to(device)
 
     dataloader = DataLoader(dataset, batch_size=batch_size, collate_fn=default_data_collator)
     all_logits, all_labels = [], []
 
     with torch.no_grad():
         for batch in dataloader:
-            input_ids = batch["input_ids"].to(CFG["device"])
-            attention_mask = batch["attention_mask"].to(CFG["device"])
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].cpu().numpy()
             outputs = model(input_ids=input_ids, attention_mask=attention_mask)
             logits = outputs["logits"].cpu().numpy()
@@ -64,7 +58,7 @@ def compute_optimal_thresholds(model, dataset):
                 best_t = t
                 best_metrics = (precision, recall, f1)
 
-        best_thresholds[i] = round(best_t, 2)
+        best_thresholds[str(i)] = round(best_t, 2)
         rows.append({
             "label_index": i,
             "best_threshold": round(best_t, 2),
@@ -80,29 +74,31 @@ def compute_optimal_thresholds(model, dataset):
 def main():
     print("Caricamento modello e dataset di validazione...")
 
-    config = AutoConfig.from_pretrained(CFG["model"]["path"])
-    tokenizer = AutoTokenizer.from_pretrained(CFG["model"]["path"])
+    model_dir = CFG.model.dir or CFG.model.name
+    config = AutoConfig.from_pretrained(model_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
 
     model = CustomMultiLabelModel(
-        model_name=CFG["model"]["name"],
-        num_labels=CFG["model"]["num_labels"],
+        model_name=CFG.model.name,
+        num_labels=CFG.model.num_labels,
         pos_weight=None
     )
-    model.load_state_dict(torch.load(os.path.join(CFG["model"]["path"], "pytorch_model.bin")))
+    model.load_state_dict(torch.load(os.path.join(CFG.model.dir, "pytorch_model.bin")))
+    model.to(device)
 
-    dataset = load_and_preprocess_dataset(remove_neutral=True)
+    dataset = load_and_preprocess_dataset(remove_neutral=(CFG.model.num_labels == 27))
     dev_dataset = dataset["validation"]
 
     print("Calcolo thresholds ottimali per ciascuna etichetta...")
     best_thresholds, metrics_df = compute_optimal_thresholds(model, dev_dataset)
 
-    os.makedirs(os.path.dirname(CFG["paths"]["thresholds"]), exist_ok=True)
+    os.makedirs(os.path.dirname(CFG.paths.thresholds), exist_ok=True)
 
-    with open(CFG["paths"]["thresholds"], "w") as f:
+    with open(CFG.paths.thresholds, "w") as f:
         json.dump(best_thresholds, f, indent=4)
-    print(f"Thresholds salvati in {CFG['paths']['thresholds']}")
+    print(f"Thresholds salvati in {CFG.paths.thresholds}")
 
-    metrics_csv_path = CFG["paths"]["thresholds"].replace(".json", "_metrics.csv")
+    metrics_csv_path = CFG.paths.thresholds.replace(".json", "_metrics.csv")
     metrics_df.to_csv(metrics_csv_path, index=False)
     print(f"Metriche salvate in {metrics_csv_path}")
 

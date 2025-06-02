@@ -2,13 +2,15 @@ import os
 import logging
 import csv
 from typing import Dict, List, Any
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict
 from transformers import AutoTokenizer
-from config.loader import CFG
+
+from app.config.loader import CFG
 
 # Setup logging
-log_path = os.path.join(CFG.paths["logs"], "preprocess.log")
-os.makedirs(CFG.paths["logs"], exist_ok=True)
+os.makedirs(CFG.paths.logs, exist_ok=True)
+log_path = os.path.join(CFG.paths.logs, "preprocess.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -23,12 +25,6 @@ logger = logging.getLogger(__name__)
 def load_raw_dataset(remove_neutral: bool = True) -> DatasetDict:
     """
     Carica i file .tsv locali di GoEmotions (train/dev/test) come DatasetDict.
-
-    Args:
-        remove_neutral (bool): se True, rimuove gli esempi con etichetta 'neutral' (id = 27)
-
-    Returns:
-        DatasetDict: dataset completo
     """
     logger.info("Caricamento file TSV da directory locale...")
 
@@ -46,7 +42,7 @@ def load_raw_dataset(remove_neutral: bool = True) -> DatasetDict:
                 examples.append({"text": text, "labels": label_ids})
             return examples
 
-    base_path = CFG.paths["raw_data_dir"]
+    base_path = CFG.paths.raw_data_dir
     data_dict = {
         "train": read_tsv(os.path.join(base_path, "train.tsv")),
         "validation": read_tsv(os.path.join(base_path, "dev.tsv")),
@@ -54,16 +50,12 @@ def load_raw_dataset(remove_neutral: bool = True) -> DatasetDict:
     }
 
     logger.info("Conversione in HuggingFace DatasetDict...")
-    dataset_dict = DatasetDict({
-        k: Dataset.from_list(v) for k, v in data_dict.items()
-    })
-
-    return dataset_dict
+    return DatasetDict({k: Dataset.from_list(v) for k, v in data_dict.items()})
 
 
 def initialize_tokenizer():
     logger.info("Inizializzazione del tokenizer...")
-    return AutoTokenizer.from_pretrained(CFG.model["name"])
+    return AutoTokenizer.from_pretrained(CFG.model.name)
 
 
 def preprocess_example(example: Dict[str, Any], tokenizer) -> Dict[str, Any]:
@@ -71,11 +63,11 @@ def preprocess_example(example: Dict[str, Any], tokenizer) -> Dict[str, Any]:
         example["text"],
         padding="max_length",
         truncation=True,
-        max_length=CFG.model["max_length"]
+        max_length=CFG.model.max_length
     )
-    multilabel_vector = [0] * CFG.model["num_labels"]
+    multilabel_vector = [0] * CFG.model.num_labels
     for idx in example["labels"]:
-        if 0 <= idx < CFG.model["num_labels"]:
+        if 0 <= idx < CFG.model.num_labels:
             multilabel_vector[idx] = 1
     encoding["labels"] = multilabel_vector
     return encoding
@@ -101,8 +93,13 @@ def load_and_preprocess_dataset(remove_neutral: bool = True) -> DatasetDict:
     return tokenized_dataset
 
 
-if __name__ == "__main__":
+def main():
     tokenized_ds = load_and_preprocess_dataset(remove_neutral=True)
     logger.info("Visualizzazione di un esempio tokenizzato:")
     logger.info(tokenized_ds["train"][0])
-    save_tokenized_dataset(tokenized_ds, CFG.paths["tokenized_data_dir"])
+    save_tokenized_dataset(tokenized_ds, CFG.paths.tokenized_data_dir)
+
+
+# Compatibile con: python -m app.utils.preprocess
+if __name__ == "__main__":
+    main()

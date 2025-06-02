@@ -1,21 +1,20 @@
-# === PYTHON ===
+# === PYTHON COMPILED FILES ===
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 *.ipynb_checkpoints/
 
-# === IDE ===
+# === IDE / EDITOR FILES ===
 .vscode/
 .idea/
 *.iml
 
-# === ENV/CONFIG ===
+# === ENVIRONMENT / LOG / SECRETS ===
 .env
 *.log
 
-# === MODELLI ADDDESTRATI E CHECKPOINTS ===
-models/
+# === MODELS & CHECKPOINTS (non versionati) ===
 model/models/
 *.safetensors
 *.pt
@@ -24,25 +23,30 @@ model/models/
 *.ckpt
 *.onnx
 *.npz
-*.model
 *.pth
 
-# === TOKENIZZAZIONE & OUTPUT TEMPORANEI ===
+# === TOKENIZED DATA & TEMPORARY OUTPUTS ===
 model/data/
+data/processed/
 logs/
 
-# === DATASET LOCALI (opzionale) ===
+# === OPTIONAL: RAW DATA (se troppo grandi) ===
+data/raw/
 *.csv
 *.tsv
-# Ignora solo i JSON dentro model/data/ e logs/
+
+# === JSON di LOG E TEMP che puoi rigenerare ===
 model/data/*.json
+model/logs/*.json
 logs/*.json
 
-# === DOCKER/DB TEMP ===
+# === SQLITE / DOCKER TEMP / PID ===
 *.db
 *.sock
 *.pid
 
-# === JUPYTER NOTEBOOKS ===
+# === JUPYTER NOTEBOOKS CACHE ===
 notebooks/__pycache__/
 notebooks/.ipynb_checkpoints/
+
+.venv/

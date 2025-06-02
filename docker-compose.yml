@@ -11,10 +11,10 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - PYTHONPATH=/app
     volumes:
-      - ./model:/app/model
-      - ./config:/app/config
-      - ./data:/app/data     # <--- aggiunto: per accedere a raw/processed
-      - ./logs:/model/logs 
+      - ./app/model:/app/model
+      - ./app/config:/app/config
+      - ./data:/app/data
+      - ./model/models:/app/model/models
     working_dir: /app/model
     container_name: goemotions-model
     command: ["sleep", "infinity"]
@@ -30,9 +30,7 @@ services:
     depends_on:
       - model
     volumes:
-      - ./app/api:/app/api
-      - ./app/model:/app/model
-      - ./config:/app/config
+      - ./app:/app
       - ./data:/app/data
     working_dir: /app
     container_name: goemotions-api

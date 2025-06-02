@@ -15,10 +15,8 @@ from transformers import (
     EarlyStoppingCallback,
 )
 
-from config.loader import CFG
-
-
-from utils.preprocess import load_and_preprocess_dataset
+from app.config.loader import CFG
+from app.utils.preprocess import load_and_preprocess_dataset
 
 
 class CustomMultiLabelModel(nn.Module):
@@ -41,9 +39,6 @@ class CustomMultiLabelModel(nn.Module):
 
 
 def compute_pos_weights(dataset) -> torch.Tensor:
-    """
-    Calcola i pesi per la BCEWithLogitsLoss per tenere conto dello sbilanciamento.
-    """
     labels = np.vstack([example["labels"] for example in dataset])
     label_counts = labels.sum(axis=0)
     total_samples = labels.shape[0]
@@ -52,11 +47,8 @@ def compute_pos_weights(dataset) -> torch.Tensor:
 
 
 def compute_metrics(eval_preds):
-    """
-    Calcola F1, precision e recall micro-aggregati, usando la soglia da config.
-    """
     logits, labels = eval_preds
-    predictions = (logits > CFG.threshold).astype(int)
+    predictions = (logits > CFG.thresholding.default_threshold).astype(int)
     return {
         "f1_micro": f1_score(labels, predictions, average="micro"),
         "precision_micro": precision_score(labels, predictions, average="micro"),
@@ -65,18 +57,14 @@ def compute_metrics(eval_preds):
 
 
 def save_model(trainer, tokenizer, model):
-    """
-    Salva il modello in formato compatibile HuggingFace.
-    Include: modello, tokenizer, configurazione, pesi (pytorch_model.bin), metriche.
-    """
     output_dir = trainer.args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
 
-    # Patch per assicurarsi che il config sia salvato correttamente
-    model.config.num_labels = CFG.num_labels
+    # Salva configurazione aggiornata
+    model.config.num_labels = CFG.model.num_labels
     model.config.problem_type = "multi_label_classification"
     model.config.save_pretrained(output_dir)
     torch.save(model.state_dict(), os.path.join(output_dir, "pytorch_model.bin"))
@@ -94,37 +82,34 @@ def save_model(trainer, tokenizer, model):
 def get_training_args(output_dir: str) -> TrainingArguments:
     return TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=CFG.training.batch_size,
-        per_device_eval_batch_size=CFG.training.batch_size,
+        per_device_train_batch_size=CFG.training.per_device_train_batch_size,
+        per_device_eval_batch_size=CFG.training.per_device_eval_batch_size,
         num_train_epochs=CFG.training.num_train_epochs,
-        learning_rate=CFG.training.learning_rate,
-        warmup_steps=500,
+        learning_rate=float(CFG.training.learning_rate),
+        warmup_steps=CFG.training.warmup_steps,
         weight_decay=CFG.training.weight_decay,
-        lr_scheduler_type="cosine",
+        lr_scheduler_type=CFG.training.lr_scheduler_type,
         evaluation_strategy=CFG.training.evaluation_strategy,
         save_strategy=CFG.training.save_strategy,
         save_total_limit=CFG.training.save_total_limit,
         logging_steps=CFG.training.logging_steps,
-        fp16=True,
+        fp16=CFG.training.fp16,
         load_best_model_at_end=CFG.training.load_best_model_at_end,
         metric_for_best_model=CFG.training.metric_for_best_model,
         greater_is_better=CFG.training.greater_is_better,
-        dataloader_num_workers=4,
-        report_to="none"
+        dataloader_num_workers=CFG.training.dataloader_num_workers,
+        report_to=CFG.training.report_to
     )
 
+
 def train_and_evaluate() -> float:
-    """
-    Esegue il training con i parametri attuali in CFG e ritorna l'F1 micro sul validation set.
-    Utile per tuning automatico (es. Optuna).
-    """
     dataset = load_and_preprocess_dataset()
     pos_weight = compute_pos_weights(dataset["train"])
 
-    tokenizer = AutoTokenizer.from_pretrained(CFG.model_name)
-    model = CustomMultiLabelModel(CFG.model_name, CFG.num_labels, pos_weight)
+    tokenizer = AutoTokenizer.from_pretrained(CFG.model.name)
+    model = CustomMultiLabelModel(CFG.model.name, CFG.model.num_labels, pos_weight)
 
-    training_args = get_training_args(CFG.model_dir)
+    training_args = get_training_args(CFG.model.dir)
 
     trainer = Trainer(
         model=model,

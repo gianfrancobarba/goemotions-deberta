@@ -1,7 +1,3 @@
-# model/src/train.py
-
-import os
-import json
 import logging
 import torch
 from transformers import (
@@ -13,9 +9,8 @@ from transformers import (
 )
 
 from app.config.loader import CFG
-
-from utils.preprocess import load_and_preprocess_dataset
-from train_utils import (
+from app.utils.preprocess import load_and_preprocess_dataset
+from app.model.training.train_utils import (
     compute_pos_weights,
     compute_metrics,
     CustomMultiLabelModel,
@@ -34,28 +29,24 @@ logger = logging.getLogger(__name__)
 def train():
     logger.info("Inizio training...")
 
-    # ✅ Seed dal file YAML
-    set_seed(CFG["train"]["seed"])
+    # Seed
+    set_seed(CFG.model.seed)
 
     logger.info("Caricamento del dataset GoEmotions (config: 'simplified')...")
     dataset = load_and_preprocess_dataset()
 
-    #  pos_weight disattivato (ok, resta None)
-    # Se in futuro lo userai, recuperalo così:
-    # pos_weight = torch.tensor(CFG["train"]["pos_weight"])
-
-    logger.info(f"Costruzione modello {CFG['model']['name']} con {CFG['model']['num_labels']} classi...")
+    logger.info(f"Costruzione modello {CFG.model.name} con {CFG.model.num_labels} classi...")
     model = CustomMultiLabelModel(
-        model_name=CFG["model"]["name"],
-        num_labels=CFG["model"]["num_labels"],
-        pos_weight=None  # disattivo il bilanciamento
+        model_name=CFG.model.name,
+        num_labels=CFG.model.num_labels,
+        pos_weight=None
     )
 
     logger.info("Inizializzazione del tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(CFG["model"]["name"])
+    tokenizer = AutoTokenizer.from_pretrained(CFG.model.name)
 
     logger.info("Configurazione TrainingArguments...")
-    training_args = get_training_args(CFG["model"]["path"])  # salva nella directory definita in YAML
+    training_args = get_training_args(CFG.model.dir)
 
     logger.info("Inizializzazione Trainer...")
     trainer = Trainer(
@@ -74,6 +65,9 @@ def train():
     logger.info("Salvataggio modello e configurazione...")
     save_model(trainer, tokenizer, model)
 
-
 if __name__ == "__main__":
+    from transformers import logging
+    logging.set_verbosity_error()
+    
     train()
+
