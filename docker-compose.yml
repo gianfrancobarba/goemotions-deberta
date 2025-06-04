@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   model:
     build:
@@ -9,11 +11,10 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - PYTHONPATH=/app
     volumes:
-      - ./app/model:/app/model
-      - ./app/config:/app/config
-      - ./data:/app/data
-      - ./model/models:/app/model/models  # volume condiviso
-    working_dir: /app/model
+      - ./app:/app                           # tutto il codice sorgente
+      - ./data:/app/data                    # dataset raw + processed
+      - ./model/models:/app/model/models    # modelli salvati, tokenizer           # utility functions
+    working_dir: /app
     container_name: goemotions-model
     command: ["sleep", "infinity"]
 
@@ -28,12 +29,16 @@ services:
     depends_on:
       - model
     volumes:
-      - ./app:/app
-      - ./data:/app/data
-      - ./model/models:/app/model/models  # volume condiviso
+      - ./app/api:/app/api
+      - ./app/config:/app/config
+      - ./app/utils:/app/utils
+      - ./app/model:/app/model
+      - ./model/models:/app/model/models
+
     working_dir: /app
     container_name: goemotions-api
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+
   client:
     build:
       context: .

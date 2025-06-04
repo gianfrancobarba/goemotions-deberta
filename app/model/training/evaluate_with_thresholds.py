@@ -80,9 +80,9 @@ def main():
     print(f"Recall:      {recall:.4f}")
 
     # === Salvataggio risultati ===
-    os.makedirs(CFG.paths.logs, exist_ok=True)
-    output_json = os.path.join(CFG.paths.logs, "eval_with_thresholds.json")
-    output_csv = os.path.join(CFG.paths.logs, "eval_with_thresholds_metrics.csv")
+    os.makedirs(CFG.paths.model_logs, exist_ok=True)
+    output_json = os.path.join(CFG.paths.model_logs, "eval_with_thresholds.json")
+    output_csv = os.path.join(CFG.paths.model_logs, "eval_with_thresholds_metrics.csv")
 
     # Salvataggio JSON sintetico
     results_dict = {

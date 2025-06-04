@@ -1,28 +1,19 @@
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-runtime
 
-# Imposta directory di lavoro
+# Directory di lavoro coerente per tutto
 WORKDIR /app
 
-# Copia e installa solo requirements
+# Requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-# scaricare le risorse NLTK
+
+# Download risorse NLTK
 RUN python -m nltk.downloader wordnet omw-1.4 averaged_perceptron_tagger averaged_perceptron_tagger_eng stopwords
 
-# Copia i moduli necessari per l’API
-COPY app/api ./app/api
-COPY app/config ./app/config
-COPY app/api/schemas ./app/api/schemas
-COPY app/api/services ./app/api/services
-COPY app/model/inference ./app/model/inference
+#COPY app/config ./app/config
+#COPY app/api ./app/api
+#COPY app/utils ./app/utils
 
-# Imposta il PYTHONPATH per usare import come `from ..`
-ENV PYTHONPATH=/app
-
-# Espone la porta 8000 per FastAPI
-EXPOSE 8000
-
-# Comando di avvio
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-
+# 🔧 Entry point di default
+CMD ["python"]
+# Avvio dell'applicazione API

@@ -8,8 +8,8 @@ from transformers import AutoTokenizer
 from config.loader import CFG
 
 # Setup logging
-os.makedirs(CFG.paths.logs, exist_ok=True)
-log_path = os.path.join(CFG.paths.logs, "preprocess.log")
+os.makedirs(CFG.paths.model_logs, exist_ok=True)
+log_path = os.path.join(CFG.paths.model_logs, "preprocess.log")
 
 logging.basicConfig(
     level=logging.INFO,

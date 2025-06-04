@@ -8,6 +8,7 @@ sentencepiece==0.1.99
 protobuf==4.25.3
 scikit-learn
 fastapi
+mlflow
 uvicorn
 pydantic
 python-dotenv

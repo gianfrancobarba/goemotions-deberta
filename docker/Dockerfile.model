@@ -9,9 +9,13 @@ RUN apt-get update && apt-get install -y \
     ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip3 /usr/bin/pip
 
-WORKDIR /app/model
+WORKDIR /app
 
 COPY requirements.txt .
+#COPY app/config ./app/config
+#COPY app/model ./app/model
+#COPY app/utils ./app/utils
+#COPY ./data ./app/data
 
 # Install dependencies
 RUN pip install --upgrade pip

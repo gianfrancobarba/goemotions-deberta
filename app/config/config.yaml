@@ -2,7 +2,7 @@
 
 model:
   name: "microsoft/deberta-v3-base"
-  dir: "model/models"
+  dir: "/app/model/models"
   num_labels: 27                # oppure 28 se includi 'neutral'
   max_length: 128
   seed: 42
@@ -32,7 +32,7 @@ training:
 
 thresholding:
   default_threshold: 0.5
-  thresholds_path: "model/models/thresholds.json"    # coerente col campo sotto
+  thresholds_path: "model/models/thresholds.json"    # ✅ coerente col campo sotto
   batch_size: 32
   threshold_range:
     start: 0.1
@@ -108,15 +108,21 @@ api:
   port: 8000
 
 surrogate:
-  n_perturbations: 40
-  threshold: 0.4
+  n_perturbations: 25
+  threshold: 0.5
   max_depth: 3
+
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "goemotions_deberta_experiment"
+  run_name: "goemotions_deberta_run"
 
 paths:
   data_dir: "data"
   raw_data_dir: "data/raw"
   tokenized_data_dir: "data/processed"
-  logs: "model/logs"
+  model_logs: "app/model/logs"
+  api_logs: "app/api/logs"      # opzionale per API
   metrics_file: "model/logs/eval_with_thresholds.json"
   metrics_csv: "model/logs/eval_with_thresholds_metrics.csv"
   outputs: "model/logs/tuning"
@@ -124,5 +130,5 @@ paths:
   model_dir: "model/models"
   model_file: "model/models/pytorch_model.bin"
   surrogate_dir: "model/surrogate"
-  surrogate_file: "model/surrogate/surrogate_model.pkl"
+  supossorrogate_file: "model/surrogate/surrogate_model.pkl"
   

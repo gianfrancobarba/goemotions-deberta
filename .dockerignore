@@ -1,49 +1,61 @@
-# === PYTHON ===
+# === PYTHON CACHE ===
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.ipynb_checkpoints/
 
-# === IDE ===
+# === IDE CONFIG FILES ===
 .vscode/
 .idea/
 *.iml
 
-# === VIRTUAL ENV ===
+# === VIRTUAL ENVIRONMENTS ===
 .venv/
 env/
 venv/
 
-# === MODELLI ADDDESTRATI E CHECKPOINTS ===
+# === NOTEBOOKS (non necessari alla build) ===
+notebooks/
+notebooks/__pycache__/
+notebooks/.ipynb_checkpoints/
+
+# === CHECKPOINTS & MODELLI ADDDESTRATI ===
+# Se li monti via volume, ignorali
+# Ma NON ignorare la cartella models/ o model/models/ se vuoi copiarla!
 *.pt
 *.bin
-*.safetensors
 *.ckpt
 *.onnx
 *.npz
 *.h5
-models/
-model/models/
+# RIMOSSO: models/
+# RIMOSSO: model/models/checkpoint-7500/
+# RIMOSSO: model/models/checkpoint-8500/
 
-# === OUTPUT TEMPORANEI E LOGS ===
+# === OUTPUT TEMPORANEI, LOGS E TRACKING ===
 logs/
 *.log
+wandb/
+output/
+runs/
+checkpoints/
 
 # === DATASET LOCALI ===
+# Ignora i file, ma NON le cartelle se vuoi fare COPY o montarli
+# Se li monti via volume, puoi lasciarli
 *.csv
 *.tsv
-data/
-model/data/
-data/raw/
-data/processed/
 
-# === DOCKER/DB TEMP ===
+
+# === DATABASE, SOCKETS, PID ===
 *.db
 *.sock
 *.pid
 
-# === NOTEBOOKS ===
-notebooks/
-notebooks/__pycache__/
-notebooks/.ipynb_checkpoints/
+# === BACKUP E FILE DI SISTEMA ===
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
