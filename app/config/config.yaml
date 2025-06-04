@@ -32,7 +32,7 @@ training:
 
 thresholding:
   default_threshold: 0.5
-  thresholds_path: "model/models/thresholds.json"    # ✅ coerente col campo sotto
+  thresholds_path: "model/models/thresholds.json"
   batch_size: 32
   threshold_range:
     start: 0.1
@@ -121,8 +121,8 @@ paths:
   data_dir: "data"
   raw_data_dir: "data/raw"
   tokenized_data_dir: "data/processed"
-  model_logs: "app/model/logs"
-  api_logs: "app/api/logs"      # opzionale per API
+  model_logs: "model/logs"
+  api_logs: "api/logs"      # opzionale per API
   metrics_file: "model/logs/eval_with_thresholds.json"
   metrics_csv: "model/logs/eval_with_thresholds_metrics.csv"
   outputs: "model/logs/tuning"
