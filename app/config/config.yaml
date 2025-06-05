@@ -9,26 +9,28 @@ model:
   model_file: "pytorch_model.bin"
 
 training:
-  per_device_train_batch_size: 16
-  per_device_eval_batch_size: 32
-  num_train_epochs: 8
-  learning_rate: 1e-5
-  warmup_steps: 500
-  weight_decay: 0.01
-  lr_scheduler_type: "cosine"
-  evaluation_strategy: "steps"
-  eval_steps: 500
-  save_strategy: "steps"
-  save_steps: 500
-  save_total_limit: 2
-  logging_steps: 100
-  fp16: true
-  load_best_model_at_end: true
-  metric_for_best_model: "f1_micro"
-  greater_is_better: true
-  dataloader_num_workers: 4
-  report_to: "none"
-  output_dir: "model/models"
+  per_device_train_batch_size: 16                 # Modifica in base alla tua GPU
+  per_device_eval_batch_size: 32                  # Modifica in base alla tua GPU
+  num_train_epochs: 8                             # Numero di epoche per l'addestramento
+  learning_rate: 1e-5                             # Modifica in base alla tua configurazione
+  warmup_steps: 500                               # Numero di passi di warmup
+  weight_decay: 0.01                              # Decadimento del peso per la regolarizzazione
+  lr_scheduler_type: "cosine"                     # Tipo di scheduler per il tasso di apprendimento
+  evaluation_strategy: "steps"                    # Strategia di valutazione
+  eval_steps: 500                                 # Frequenza di valutazione durante l'addestramento
+  save_strategy: "steps"                          # Strategia di salvataggio del modello
+  save_steps: 500                                 # Frequenza di salvataggio del modello
+  save_total_limit: 2                             # Limite per il numero di modelli salvati
+  logging_steps: 100                              # Frequenza di logging
+  fp16: false                                     # Imposta a true se hai una GPU compatibile con FP16
+  max_steps: -1                                   # -1 per usare num_train_epochs    
+  load_best_model_at_end: true                    # Carica il miglior modello alla fine dell'addestramento
+  metric_for_best_model: "f1_micro"               # Metrica per determinare il miglior modello
+  greater_is_better: true                         # Indica se una metrica più alta è migliore
+  dataloader_num_workers: 4                       # Numero di worker per il dataloader
+  report_to: "none"                               # Imposta a "none" per non usare strumenti di report come TensorBoard o Weights & Biases
+  output_dir: "model/models"                      # Cartella di output per i modelli
+
 
 thresholding:
   default_threshold: 0.5
@@ -113,9 +115,9 @@ surrogate:
   max_depth: 3
 
 mlflow:
-  tracking_uri: "/app/mlruns"
-  experiment_name: "goemotions_deberta_experiment"
-  run_name: "goemotions_deberta_run"
+  tracking_uri: "file:/app/mlruns"
+  experiment_name: "goemotions_deberta_experiment" 
+  run_name: "goemotions_deberta_run"                
 
 paths:
   data_dir: "data"
