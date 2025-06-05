@@ -1,5 +1,3 @@
-# app/model/training/evaluate_with_thresholds.py
-
 import os
 import json
 import numpy as np
@@ -9,6 +7,7 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig, default_data_collator
 
+import mlflow
 from config.loader import CFG
 from utils.preprocess import load_and_preprocess_dataset
 from model.training.train_utils import CustomMultiLabelModel
@@ -19,15 +18,12 @@ def apply_thresholds(logits: np.ndarray, thresholds_dict: dict) -> np.ndarray:
     thresholds = np.array([thresholds_dict[str(i)] for i in range(logits.shape[1])])
     return (logits > thresholds).astype(int)
 
-
-def main():
+def evaluate_with_thresholds():
     print("🔍 Valutazione del modello con thresholds ottimali...")
 
-    # === Caricamento thresholds ===
     with open(CFG.paths.thresholds, "r") as f:
         best_thresholds = json.load(f)
 
-    # === Caricamento modello ===
     config = AutoConfig.from_pretrained(CFG.model.name)
     tokenizer = AutoTokenizer.from_pretrained(CFG.model.name)
     model = CustomMultiLabelModel(
@@ -41,7 +37,6 @@ def main():
     model.to(device)
     model.eval()
 
-    # === Dataset ===
     dataset = load_and_preprocess_dataset(remove_neutral=(CFG.model.num_labels == 27))
     eval_dataset = dataset["validation"]
     dataloader = DataLoader(
@@ -51,7 +46,6 @@ def main():
     )
 
     all_logits, all_labels = [], []
-
     with torch.no_grad():
         for batch in dataloader:
             input_ids = batch["input_ids"].to(device)
@@ -65,7 +59,6 @@ def main():
     all_logits = np.concatenate(all_logits, axis=0)
     all_labels = np.concatenate(all_labels, axis=0)
 
-    # === Applica thresholds e calcola metriche ===
     preds = apply_thresholds(all_logits, best_thresholds)
 
     f1_micro = f1_score(all_labels, preds, average="micro")
@@ -79,12 +72,10 @@ def main():
     print(f"Precision:   {precision:.4f}")
     print(f"Recall:      {recall:.4f}")
 
-    # === Salvataggio risultati ===
     os.makedirs(CFG.paths.model_logs, exist_ok=True)
     output_json = os.path.join(CFG.paths.model_logs, "eval_with_thresholds.json")
     output_csv = os.path.join(CFG.paths.model_logs, "eval_with_thresholds_metrics.csv")
 
-    # Salvataggio JSON sintetico
     results_dict = {
         "f1_micro": round(f1_micro, 4),
         "f1_macro": round(f1_macro, 4),
@@ -94,7 +85,6 @@ def main():
     with open(output_json, "w") as f:
         json.dump(results_dict, f, indent=4)
 
-    # Salvataggio CSV dettagliato
     label_metrics = []
     for i in range(CFG.model.num_labels):
         p = precision_score(all_labels[:, i], preds[:, i], zero_division=0)
@@ -111,6 +101,20 @@ def main():
     pd.DataFrame(label_metrics).to_csv(output_csv, index=False)
     print(f"📁 Metriche salvate in: {output_json} e {output_csv}")
 
+    # === Logging con MLflow ===
+    mlflow.log_param("thresholding_method", "apply_precomputed")
+    mlflow.log_artifact(output_json)
+    mlflow.log_artifact(output_csv)
+    mlflow.log_metric("f1_micro", f1_micro)
+    mlflow.log_metric("f1_macro", f1_macro)
+    mlflow.log_metric("precision_micro", precision)
+    mlflow.log_metric("recall_micro", recall)
+
+    for row in label_metrics:
+        mlflow.log_metric(f"f1_label_{int(row['label_index'])}", row["f1_score"])
 
 if __name__ == "__main__":
-    main()
+    mlflow.set_tracking_uri(CFG.mlflow.tracking_uri)
+    mlflow.set_experiment(CFG.mlflow.experiment_name)
+    with mlflow.start_run(run_name="evaluate_with_thresholds", nested=True):
+        evaluate_with_thresholds()

@@ -1,3 +1,5 @@
+# tune_thresholds.py
+
 import os
 import json
 import numpy as np
@@ -7,6 +9,7 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig, default_data_collator
 
+import mlflow
 from config.loader import CFG
 from utils.preprocess import load_and_preprocess_dataset
 from model.training.train_utils import CustomMultiLabelModel
@@ -70,8 +73,7 @@ def compute_optimal_thresholds(model, dataset):
     metrics_df = pd.DataFrame(rows)
     return best_thresholds, metrics_df
 
-
-def main():
+def tune_thresholds():
     print("Caricamento modello e dataset di validazione...")
 
     model_dir = CFG.model.dir or CFG.model.name
@@ -83,7 +85,7 @@ def main():
         num_labels=CFG.model.num_labels,
         pos_weight=None
     )
-    model.load_state_dict(torch.load(os.path.join(CFG.model.dir, "pytorch_model.bin")))
+    model.load_state_dict(torch.load(os.path.join(CFG.model.dir, CFG.model.model_file)))
     model.to(device)
 
     dataset = load_and_preprocess_dataset(remove_neutral=(CFG.model.num_labels == 27))
@@ -102,6 +104,17 @@ def main():
     metrics_df.to_csv(metrics_csv_path, index=False)
     print(f"Metriche salvate in {metrics_csv_path}")
 
+    # Log MLflow
+    mlflow.log_artifact(CFG.paths.thresholds)
+    mlflow.log_artifact(metrics_csv_path)
+    mlflow.log_param("thresholding_method", "per-label search")
+    mlflow.log_param("threshold_range", f"{CFG.thresholding.threshold_range.start}-{CFG.thresholding.threshold_range.stop}-{CFG.thresholding.threshold_range.step}")
+
+    for _, row in metrics_df.iterrows():
+        mlflow.log_metric(f"f1_label_{int(row['label_index'])}", row["f1_score"])
 
 if __name__ == "__main__":
-    main()
+    mlflow.set_tracking_uri(CFG.mlflow.tracking_uri)
+    mlflow.set_experiment(CFG.mlflow.experiment_name)
+    with mlflow.start_run(run_name="tune_thresholds", nested=True):
+        tune_thresholds()

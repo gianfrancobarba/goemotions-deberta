@@ -1,5 +1,20 @@
+import os
+os.environ["MKL_SERVICE_FORCE_INTEL"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# Importare numpy prima di tutto per evitare incompatibilità MKL
+import numpy as np  # noqa: F401
+
+# Per filtrare warning di sklearn su metriche ill-defined
+import warnings
+from sklearn.exceptions import UndefinedMetricWarning
+warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+
+# Logging
 import logging
 import torch
+import mlflow
+import mlflow.pytorch
 from transformers import (
     AutoTokenizer,
     Trainer,
@@ -28,6 +43,10 @@ logger = logging.getLogger(__name__)
 
 def train():
     logger.info("Inizio training...")
+
+    # Setup MLflow
+    mlflow.set_tracking_uri(CFG.mlflow.tracking_uri)
+    mlflow.set_experiment(CFG.mlflow.experiment_name)
 
     # Seed
     set_seed(CFG.model.seed)
@@ -59,15 +78,36 @@ def train():
         callbacks=[EarlyStoppingCallback(early_stopping_patience=4)]
     )
 
-    logger.info("Avvio training...")
-    trainer.train()
+    with mlflow.start_run():
+        logger.info("Logging dei parametri in MLflow...")
+        mlflow.log_param("model_name", CFG.model.name)
+        mlflow.log_param("num_labels", CFG.model.num_labels)
 
-    logger.info("Salvataggio modello e configurazione...")
-    save_model(trainer, tokenizer, model)
+        for k, v in vars(CFG.training).items():
+            mlflow.log_param(k, v)
+
+        logger.info("Avvio training...")
+        trainer.train()
+
+        logger.info("Valutazione del modello...")
+        metrics = trainer.evaluate()
+        for k, v in metrics.items():
+            mlflow.log_metric(k, v)
+
+        logger.info("Salvataggio su disco (tokenizer e config)...")
+        save_model(trainer, tokenizer, model)
+
+        # Unwrap del modello per compatibilità MLflow
+        from accelerate import Accelerator
+        accelerator = Accelerator()
+        unwrapped_model = accelerator.unwrap_model(model)
+
+        # Logging del modello in MLflow
+        logger.info("Logging del modello su MLflow...")
+        mlflow.pytorch.log_model(unwrapped_model, artifact_path="model")
+
 
 if __name__ == "__main__":
     from transformers import logging
     logging.set_verbosity_error()
-    
     train()
-

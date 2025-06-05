@@ -113,7 +113,7 @@ surrogate:
   max_depth: 3
 
 mlflow:
-  tracking_uri: "http://localhost:5000"
+  tracking_uri: "/app/mlruns"
   experiment_name: "goemotions_deberta_experiment"
   run_name: "goemotions_deberta_run"
 
