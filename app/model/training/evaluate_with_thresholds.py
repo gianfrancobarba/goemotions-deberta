@@ -10,20 +10,26 @@ from transformers import AutoTokenizer, AutoConfig, default_data_collator
 import mlflow
 from config.loader import CFG
 from utils.preprocess import load_and_preprocess_dataset
+from utils.mlflow_utils import start_or_continue_run
 from model.training.train_utils import CustomMultiLabelModel
 
+# === Setup dispositivo ===
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# === Applica soglie ai logits ===
 def apply_thresholds(logits: np.ndarray, thresholds_dict: dict) -> np.ndarray:
     thresholds = np.array([thresholds_dict[str(i)] for i in range(logits.shape[1])])
     return (logits > thresholds).astype(int)
 
+# === Funzione principale di valutazione ===
 def evaluate_with_thresholds():
     print("🔍 Valutazione del modello con thresholds ottimali...")
 
+    # Carica soglie ottimali da file
     with open(CFG.paths.thresholds, "r") as f:
         best_thresholds = json.load(f)
 
+    # Carica modello e tokenizer
     config = AutoConfig.from_pretrained(CFG.model.name)
     tokenizer = AutoTokenizer.from_pretrained(CFG.model.name)
     model = CustomMultiLabelModel(
@@ -31,12 +37,12 @@ def evaluate_with_thresholds():
         num_labels=CFG.model.num_labels,
         pos_weight=None
     )
-
     model_path = os.path.join(CFG.model.dir, CFG.model.model_file)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     model.eval()
 
+    # Dataset
     dataset = load_and_preprocess_dataset(remove_neutral=(CFG.model.num_labels == 27))
     eval_dataset = dataset["validation"]
     dataloader = DataLoader(
@@ -45,6 +51,7 @@ def evaluate_with_thresholds():
         collate_fn=default_data_collator
     )
 
+    # Inference
     all_logits, all_labels = [], []
     with torch.no_grad():
         for batch in dataloader:
@@ -58,9 +65,9 @@ def evaluate_with_thresholds():
 
     all_logits = np.concatenate(all_logits, axis=0)
     all_labels = np.concatenate(all_labels, axis=0)
-
     preds = apply_thresholds(all_logits, best_thresholds)
 
+    # Metriche globali
     f1_micro = f1_score(all_labels, preds, average="micro")
     f1_macro = f1_score(all_labels, preds, average="macro")
     precision = precision_score(all_labels, preds, average="micro")
@@ -72,6 +79,7 @@ def evaluate_with_thresholds():
     print(f"Precision:   {precision:.4f}")
     print(f"Recall:      {recall:.4f}")
 
+    # Salvataggio risultati
     os.makedirs(CFG.paths.model_logs, exist_ok=True)
     output_json = os.path.join(CFG.paths.model_logs, "eval_with_thresholds.json")
     output_csv = os.path.join(CFG.paths.model_logs, "eval_with_thresholds_metrics.csv")
@@ -101,7 +109,7 @@ def evaluate_with_thresholds():
     pd.DataFrame(label_metrics).to_csv(output_csv, index=False)
     print(f"📁 Metriche salvate in: {output_json} e {output_csv}")
 
-    # === Logging con MLflow ===
+    # Logging MLflow
     mlflow.log_param("thresholding_method", "apply_precomputed")
     mlflow.log_artifact(output_json)
     mlflow.log_artifact(output_csv)
@@ -113,8 +121,11 @@ def evaluate_with_thresholds():
     for row in label_metrics:
         mlflow.log_metric(f"f1_label_{int(row['label_index'])}", row["f1_score"])
 
+# === Entry point ===
 if __name__ == "__main__":
     mlflow.set_tracking_uri(CFG.mlflow.tracking_uri)
     mlflow.set_experiment(CFG.mlflow.experiment_name)
-    with mlflow.start_run(run_name="evaluate_with_thresholds", nested=True):
+
+    with mlflow.start_run(run_name="evaluate_with_thresholds"):
         evaluate_with_thresholds()
+
