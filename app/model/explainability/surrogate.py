@@ -36,7 +36,10 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
                "rules": str,
                "target_vector": [0,1,...],
                "metrics": { "fidelity":float, ... },
-               "feature_importances": { feat: importance, ... }
+               "feature_importances": {
+                   "bow": { feat: importance, ... },
+                   "aggregated": { feat: importance, ... }
+               }
             }, ...
         }
       }
@@ -76,9 +79,31 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
         sparsity = sparsity_score(clf)
         stability = stability_score(y, perturbed)
 
-        # 5.5) Prendo le importances di ciascuna feature (molte saranno zero)
-        importances = dict(zip(feature_names, clf.feature_importances_))
+        # 5.5) Prendo tutte le importances
+        all_importances = dict(zip(feature_names, clf.feature_importances_))
 
+        # 5.6) Recupero le feature del testo originale (non perturbato)
+        original_features = features_dicts[0]
+
+        # 5.7) Separo:
+        # - le bow_ presenti nel testo originale
+        # - le feature aggregate significative
+        bow_importances = {
+            k: v for k, v in all_importances.items()
+            if k.startswith("bow_") and original_features.get(k, 0) > 0 and v > 0
+        }
+        aggregated_importances = {
+            k: v for k, v in all_importances.items()
+            if not k.startswith("bow_") and v > 0
+        }
+
+        # 5.8) Costruisco dizionario separato per bow vs aggregate
+        importances = {
+            "bow": bow_importances,
+            "aggregated": aggregated_importances
+        }
+
+        # 5.9) Salvo risultati del surrogate
         surrogates[emo] = {
             "rules": rules,
             "target_vector": y,
@@ -90,6 +115,7 @@ def explain_with_surrogates(text: str) -> Dict[str, Any]:
             "feature_importances": importances
         }
 
+    # 6) Ritorno struttura completa
     return {
         "original_text": text,
         "predictions": base_preds,
