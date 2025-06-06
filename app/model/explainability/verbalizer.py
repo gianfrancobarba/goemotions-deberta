@@ -30,7 +30,6 @@ def load_nrc_vocab(path: str) -> Set[str]:
                 vocab.add(word.lower())
     return vocab
 
-# Carica NRC e unisce parole aggiuntive hardcoded
 EMOTION_VOCAB: Set[str] = load_nrc_vocab(LEXICON_PATH)
 ADDITIONAL_EMOTION_WORDS = {
     "proud", "ecstatic", "devastated", "furious", "overjoyed", "terrified",
@@ -96,18 +95,7 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         token_set = set(tokens)
         emotion_words = [tok for tok in tokens if tok in EMOTION_VOCAB]
 
-        surrogate_keywords: Set[str] = set()
-        for feat, imp in importances.get("bow", {}).items():
-            if isinstance(imp, (float, int)) and imp > 0:
-                word = feat.replace("bow_", "")
-                if word in token_set:
-                    surrogate_keywords.add(word)
-
-        combined_emotion_words = sorted(
-            set(emotion_words),
-            key=lambda w: tokens.index(w) if w in tokens else 999
-        )
-
+        # Analisi delle importanze bow
         active_bow = [
             (feat.replace("bow_", ""), imp)
             for feat, imp in importances.get("bow", {}).items()
@@ -116,11 +104,21 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         active_bow.sort(key=lambda x: x[1], reverse=True)
 
         top_keywords = [word for word, _ in active_bow if word in token_set][:3]
-        if not top_keywords and active_bow:
-            top_keywords = [active_bow[0][0]]
+
+        # Fallback robusto
+        if not top_keywords:
+            top_keywords = [
+                w for w in emotion_words if w in token_set
+            ] or [
+                word for word, _ in active_bow if word in token_set
+            ] or [
+                next(iter(token_set), None)
+            ]
+            top_keywords = [w for w in top_keywords if w][:1]
+
+        emocapital = emo.upper()
 
         frasi: List[str] = []
-        emocapital = emo.upper()
         frasi.append(f"Il modello ha classificato il testo come “{emocapital}” (probabilità: {prob:.2f}).")
         if top_keywords:
             frasi.append(f"La parola chiave più rilevante è “{top_keywords[0]}”.")
@@ -135,10 +133,16 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
             frasi.append(f"Sono presenti {n_qst} {'punto interrogativo' if n_qst == 1 else 'punti interrogativi'}.")
         if stop_ratio_rounded is not None:
             frasi.append(f"Il rapporto stop-word è {stop_ratio_rounded:.2f} (rapporto tra parole neutre e parole emotive).")
+
+        combined_emotion_words = sorted(
+            set(emotion_words),
+            key=lambda w: tokens.index(w) if w in tokens else 999
+        )
         if combined_emotion_words:
             frasi.append(f"Le parole emotive rilevate nel testo sono: {', '.join(combined_emotion_words)}.")
         else:
             frasi.append("Nessuna parola emotiva rilevata.")
+
         if top_keywords:
             frasi.append(f"In sintesi, la presenza di “{top_keywords[0]}” e la lunghezza del testo hanno portato il modello a predire “{emocapital}”.")
         else:
@@ -147,8 +151,10 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
         contrastive_deltas = get_contrastive_deltas(
             original_text,
             emotion=emo,
-            top_words=top_keywords
+            top_words=top_keywords,
+            threshold=0.0  # forza visualizzazione
         )
+
         if contrastive_deltas:
             frasi.append("Analisi contrastiva:")
             for word, delta in contrastive_deltas.items():
@@ -158,14 +164,15 @@ def verbalize_explanation(result: Dict[str, Any]) -> Dict[str, Any]:
 
         simple_explanation = "\n".join(frasi)
 
-        all_imps = sorted(
-            [
-                (feat.replace("bow_", ""), round(imp, 4))
-                for feat, imp in importances.get("bow", {}).items()
-                if isinstance(imp, (float, int)) and imp > 0
-            ],
-            key=lambda x: x[1], reverse=True
-        )
+        # Mostra tutte le feature importanti, non solo bow_
+        flat_importances = {
+            feat.replace("bow_", ""): round(imp, 4)
+            for subdict in importances.values()
+            if isinstance(subdict, dict)
+            for feat, imp in subdict.items()
+            if isinstance(imp, (float, int)) and imp > 0
+        }
+        all_imps = sorted(flat_importances.items(), key=lambda x: x[1], reverse=True)
 
         parsed = parse_rules(raw_rules) if raw_rules else ""
 

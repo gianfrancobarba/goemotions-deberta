@@ -5,7 +5,7 @@ def get_contrastive_deltas(
     original_text: str,
     emotion: str,
     top_words: List[str],
-    threshold: float = 0.2
+    threshold: float = 0.0 # aumentare se si vuole fare la contrastiva solo di determinate parole
 ) -> Dict[str, float]:
     """
     Calcola per ogni parola quanto diminuisce la probabilità dell’emozione

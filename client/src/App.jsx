@@ -246,6 +246,8 @@ export default function App() {
       <div className="layout">
         {/* === SIDEBAR === */}
         <aside className="sidebar">
+          <h2 className="brand-title">eMIND</h2>
+
           <button
               className="button"
               onClick={() => {
@@ -255,7 +257,9 @@ export default function App() {
           >
             Nuova analisi
           </button>
+
           <div className="history-title">CRONOLOGIA ANALISI</div>
+
           <div className="history-scroll">
             {userHistory.map((msg) => (
                 <div className="history-item" key={msg.id}>
