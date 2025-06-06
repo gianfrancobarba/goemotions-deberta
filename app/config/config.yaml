@@ -31,6 +31,21 @@ training:
   report_to: "none"                               # Imposta a "none" per non usare strumenti di report come TensorBoard o Weights & Biases
   output_dir: "model/models"                      # Cartella di output per i modelli
 
+tuning:
+  n_trials: 2
+  study_name: "deberta_tuning"
+  experiment_name: "deberta_tuning_experiment"
+  search_space:
+    learning_rate:
+      min: 1e-6
+      max: 5e-5
+    weight_decay:
+      min: 0.0
+      max: 0.3
+    batch_size: [8, 16, 32]
+    num_epochs:
+      min: 2
+      max: 6
 
 thresholding:
   default_threshold: 0.5
@@ -116,8 +131,8 @@ surrogate:
 
 mlflow:
   tracking_uri: "file:/app/mlruns"
-  experiment_name: "goemotions_deberta_experiment" 
-  run_name: "goemotions_deberta_run"                
+  experiment_name: "goemotions_deberta_experiment_complete" 
+  run_name: "goemotions_deberta_run_complete"             
 
 paths:
   data_dir: "data"
