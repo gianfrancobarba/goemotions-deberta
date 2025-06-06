@@ -19,7 +19,6 @@ import mlflow.pytorch
 from transformers import (
     AutoTokenizer,
     Trainer,
-    TrainingArguments,
     EarlyStoppingCallback,
     ProgressCallback,
     set_seed
@@ -71,9 +70,9 @@ def train():
 
     # Argomenti di training
     logger.info("Configurazione TrainingArguments...")
-    training_args = get_training_args(CFG.model.dir)
+    training_args = get_training_args(cfg = None)
 
-    # Trainer con barra di progresso
+    # Trainer
     logger.info("Inizializzazione Trainer...")
     trainer = Trainer(
         model=model,
@@ -111,30 +110,13 @@ def train():
             logger.info("Salvataggio su disco (tokenizer e config)...")
             save_model(trainer, tokenizer, model)
 
-            # Logging del modello in MLflow con input_example compatibile
-            logger.info("Logging del modello su MLflow (senza unwrap, con input_example)...")
+            # Logging del modello in MLflow come artifact grezzo
+            logger.info("Logging del modello su MLflow...")
 
-            # Tokenizzazione di un esempio
-            sample_text = "I feel great"
-            tokenized = tokenizer(
-                sample_text,
-                return_tensors="pt",
-                padding="max_length",
-                truncation=True,
-                max_length=10  # imposta max_length manualmente per evitare warning
-            )
+            # Salva l'intera directory di output del training (contiene model + tokenizer)
+            mlflow.log_artifacts(training_args.output_dir, artifact_path="model")
 
-            # Converte ogni tensor in numpy array monodimensionale (esempio singolo)
-            input_ids = tokenized["input_ids"].numpy()[0]
-            attention_mask = tokenized["attention_mask"].numpy()[0]
-
-            # Inserisce come riga singola nel DataFrame
-            input_example = pd.DataFrame([{
-                "input_ids": input_ids,
-                "attention_mask": attention_mask
-            }])
-
-            logger.info("Modello loggato con successo in MLflow.")
+            logger.info("✅ Modello loggato con successo in MLflow.")
 
         except Exception as e:
             logger.exception("Errore durante la run MLflow:")

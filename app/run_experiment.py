@@ -6,6 +6,7 @@ from config.loader import CFG
 from model.training.train import train
 from model.thresholds.tune_thresholds import tune_thresholds
 from model.training.evaluate_with_thresholds import evaluate_with_thresholds
+from model.training.evaluate import evaluate
 
 # Configura il logging
 logging.basicConfig(level=logging.INFO)
@@ -40,13 +41,23 @@ def main():
             mlflow.set_tag("tune_thresholds_status", "failed")
             raise
 
-        # Step 3: Final evaluation
+        # Step 3: Final evaluation with thresholds
         try:
-            logger.info("📊 Step 3: Valutazione finale...")
+            logger.info("📊 Step 3: Validazione con thresholds finale...")
             with mlflow.start_run(run_name="evaluate_with_thresholds", nested=True):
                 evaluate_with_thresholds()
         except Exception as e:
             logger.exception("❌ Errore durante la valutazione finale:")
+            mlflow.set_tag("evaluate_status", "failed")
+            raise
+
+        # ✅ Step 4: Raw evaluation (soglia fissa 0.5)
+        try:
+            logger.info("📉 Step 4: Valutazione su test (threshold = 0.5)...")
+            with mlflow.start_run(run_name="evaluate_raw_threshold_0.5", nested=True):
+                evaluate()
+        except Exception as e:
+            logger.exception("❌ Errore durante la valutazione grezza:")
             mlflow.set_tag("evaluate_status", "failed")
             raise
 

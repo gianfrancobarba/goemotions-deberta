@@ -1,13 +1,14 @@
-# model/src/tuner.py
-
 import os
+import json
 import optuna
 import logging
 import pandas as pd
+from copy import deepcopy
 from transformers import set_seed
+import mlflow
 
-from config.config import CFG
-from model.src.train_utils import train_and_evaluate
+from config.loader import CFG
+from model.training.train_utils import train_and_evaluate
 
 # === Setup logging ===
 logging.basicConfig(
@@ -16,60 +17,84 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# === Obiettivo per Optuna ===
+# === Optuna Objective ===
 def objective(trial):
-    # Suggerisci iperparametri
-    learning_rate = trial.suggest_float("learning_rate", 1e-6, 5e-5, log=True)
-    batch_size = trial.suggest_categorical("batch_size", [8, 16, 32])
-    weight_decay = trial.suggest_float("weight_decay", 0.0, 0.3)
-    num_epochs = trial.suggest_int("num_epochs", 2, 5)
+    # Clona l'intera configurazione per non alterare CFG globale
+    trial_cfg = deepcopy(CFG)
 
-    # Imposta temporaneamente la configurazione
-    CFG.learning_rate = learning_rate
-    CFG.batch_size = batch_size
-    CFG.weight_decay = weight_decay
-    CFG.num_epochs = num_epochs
+    space = CFG.tuning.search_space
 
-    # Assicura riproducibilità
-    set_seed(CFG.seed)
+    # Cast espliciti e sicuri dei bounds
+    lr_min = float(space.learning_rate.min)
+    lr_max = float(space.learning_rate.max)
+    wd_min = float(space.weight_decay.min)
+    wd_max = float(space.weight_decay.max)
+    ep_min = int(space.num_epochs.min)
+    ep_max = int(space.num_epochs.max)
+    batch_choices = list(space.batch_size)
 
-    logger.info(f"🔍 Trial {trial.number} - lr: {learning_rate}, bs: {batch_size}, wd: {weight_decay}, ep: {num_epochs}")
+    # Sampling dallo spazio di ricerca
+    trial_cfg.training.learning_rate = trial.suggest_float(
+        "learning_rate", lr_min, lr_max, log=True
+    )
+    trial_cfg.training.weight_decay = trial.suggest_float(
+        "weight_decay", wd_min, wd_max
+    )
+    trial_cfg.training.num_train_epochs = trial.suggest_int(
+        "num_epochs", ep_min, ep_max
+    )
+    trial_cfg.training.per_device_train_batch_size = trial.suggest_categorical(
+        "batch_size", batch_choices
+    )
 
-    # Allenamento + valutazione (ritorna F1 score su validation)
-    f1 = train_and_evaluate()
-    trial.set_user_attr("f1_score", f1)
+    # Imposta il seed per riproducibilità
+    set_seed(int(trial_cfg.model.seed))
 
-    return f1
+    with mlflow.start_run(nested=True, run_name=f"optuna_trial_{trial.number}"):
+        # Log dei parametri del trial
+        mlflow.log_params({
+            "learning_rate": trial_cfg.training.learning_rate,
+            "batch_size": trial_cfg.training.per_device_train_batch_size,
+            "weight_decay": trial_cfg.training.weight_decay,
+            "num_train_epochs": trial_cfg.training.num_train_epochs,
+        })
+
+        # Addestramento + valutazione
+        f1_micro = train_and_evaluate(cfg=trial_cfg)
+
+        # Log della metrica obiettivo
+        mlflow.log_metric("f1_micro", f1_micro)
+        trial.set_user_attr("f1_score", f1_micro)
+
+    return f1_micro
 
 
-def run_tuning(n_trials: int = 5, study_name: str = "deberta_tuning"):
-    logger.info("🚀 Avvio della ricerca Optuna...")
+# === Run tuning ===
+def run_tuning():
+    logger.info("🚀 Avvio tuning Optuna...")
+
+    mlflow.set_tracking_uri(CFG.mlflow.tracking_uri)
+    mlflow.set_experiment(CFG.tuning.experiment_name)
 
     study = optuna.create_study(
-        study_name=study_name,
+        study_name=CFG.tuning.study_name,
         direction="maximize"
     )
-    study.optimize(objective, n_trials=n_trials)
+    study.optimize(objective, n_trials=CFG.tuning.n_trials)
 
-    logger.info("✅ Tuning completato.")
-    logger.info(f"🥇 Miglior trial: {study.best_trial.number}")
-    logger.info(f"🎯 Miglior F1 score: {study.best_value}")
-    logger.info(f"📊 Parametri: {study.best_params}")
+    logger.info(f"✅ Tuning completato. Best trial: {study.best_trial.number}")
+    logger.info(f"🎯 Best f1_micro: {study.best_value}")
+    logger.info(f"📊 Best params: {study.best_params}")
 
-    # Salvataggio dei risultati
-    os.makedirs(CFG.outputs_dir, exist_ok=True)
+    os.makedirs(CFG.paths.outputs, exist_ok=True)
 
-    # CSV di tutti i trials
     df = study.trials_dataframe()
-    df.to_csv(os.path.join(CFG.outputs_dir, "tuning_trials.csv"), index=False)
+    df.to_csv(os.path.join(CFG.paths.outputs, "tuning_trials.csv"), index=False)
 
-    # JSON dei migliori parametri
-    best_cfg_path = os.path.join(CFG.outputs_dir, "best_hyperparams.json")
-    with open(best_cfg_path, "w") as f:
-        import json
+    with open(os.path.join(CFG.paths.outputs, "best_hyperparams.json"), "w") as f:
         json.dump(study.best_params, f, indent=4)
 
-    logger.info(f"💾 Risultati salvati in {CFG.outputs_dir}")
+    logger.info(f"📁 Risultati salvati in {CFG.paths.outputs}")
 
 
 if __name__ == "__main__":

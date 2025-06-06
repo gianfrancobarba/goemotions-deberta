@@ -10,7 +10,6 @@ from transformers import AutoTokenizer, AutoConfig, default_data_collator
 import mlflow
 from config.loader import CFG
 from utils.preprocess import load_and_preprocess_dataset
-from utils.mlflow_utils import start_or_continue_run
 from model.training.train_utils import CustomMultiLabelModel
 
 # === Setup dispositivo ===

@@ -13,6 +13,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
     EarlyStoppingCallback,
+    ProgressCallback,
 )
 
 from config.loader import CFG
@@ -79,38 +80,44 @@ def save_model(trainer, tokenizer, model):
     print(f"Metriche salvate in {metrics_path}")
 
 
-def get_training_args(output_dir: str) -> TrainingArguments:
+from transformers import TrainingArguments
+
+def get_training_args(cfg) -> TrainingArguments:
+    cfg = cfg or CFG
     return TrainingArguments(
-        output_dir=output_dir,
-        per_device_train_batch_size=CFG.training.per_device_train_batch_size,
-        per_device_eval_batch_size=CFG.training.per_device_eval_batch_size,
-        num_train_epochs=CFG.training.num_train_epochs,
-        learning_rate=float(CFG.training.learning_rate),
-        warmup_steps=CFG.training.warmup_steps,
-        weight_decay=CFG.training.weight_decay,
-        lr_scheduler_type=CFG.training.lr_scheduler_type,
-        evaluation_strategy=CFG.training.evaluation_strategy,
-        save_strategy=CFG.training.save_strategy,
-        save_total_limit=CFG.training.save_total_limit,
-        logging_steps=CFG.training.logging_steps,
-        fp16=CFG.training.fp16,
-        load_best_model_at_end=CFG.training.load_best_model_at_end,
-        metric_for_best_model=CFG.training.metric_for_best_model,
-        greater_is_better=CFG.training.greater_is_better,
-        dataloader_num_workers=CFG.training.dataloader_num_workers,
-        report_to=CFG.training.report_to
+        output_dir=cfg.model.dir,
+        per_device_train_batch_size=cfg.training.per_device_train_batch_size,
+        per_device_eval_batch_size=cfg.training.per_device_eval_batch_size,
+        num_train_epochs=cfg.training.num_train_epochs,
+        learning_rate=float(cfg.training.learning_rate),
+        warmup_steps=cfg.training.warmup_steps,
+        weight_decay=cfg.training.weight_decay,
+        lr_scheduler_type=cfg.training.lr_scheduler_type,
+        evaluation_strategy=cfg.training.evaluation_strategy,
+        eval_steps=cfg.training.eval_steps,
+        save_strategy=cfg.training.save_strategy,
+        save_steps=cfg.training.save_steps,
+        save_total_limit=cfg.training.save_total_limit,
+        logging_steps=cfg.training.logging_steps,
+        fp16=cfg.training.fp16,
+        max_steps=cfg.training.max_steps,
+        load_best_model_at_end=cfg.training.load_best_model_at_end,
+        metric_for_best_model=cfg.training.metric_for_best_model,
+        greater_is_better=cfg.training.greater_is_better,
+        dataloader_num_workers=cfg.training.dataloader_num_workers,
+        report_to=cfg.training.report_to,
     )
 
 
-
-def train_and_evaluate() -> float:
+def train_and_evaluate(cfg) -> float:
+    cfg = cfg or CFG
     dataset = load_and_preprocess_dataset()
     pos_weight = compute_pos_weights(dataset["train"])
 
-    tokenizer = AutoTokenizer.from_pretrained(CFG.model.name)
-    model = CustomMultiLabelModel(CFG.model.name, CFG.model.num_labels, pos_weight)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
+    model = CustomMultiLabelModel(cfg.model.name, cfg.model.num_labels, pos_weight)
 
-    training_args = get_training_args(CFG.model.dir)
+    training_args = get_training_args(cfg)
 
     trainer = Trainer(
         model=model,
@@ -119,9 +126,13 @@ def train_and_evaluate() -> float:
         eval_dataset=dataset["validation"],
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        callbacks=[
+            EarlyStoppingCallback(early_stopping_patience=4),
+            ProgressCallback()
+        ]
     )
 
     trainer.train()
     metrics = trainer.evaluate()
     return metrics.get("eval_f1_micro", 0.0)
+
