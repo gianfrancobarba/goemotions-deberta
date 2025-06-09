@@ -6,6 +6,7 @@ import pandas as pd
 from copy import deepcopy
 from transformers import set_seed
 import mlflow
+mlflow.autolog()
 
 from config.loader import CFG
 from model.training.train_utils import train_and_evaluate

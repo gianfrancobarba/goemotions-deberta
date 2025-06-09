@@ -1,20 +1,21 @@
-version: "3.8"
-
 services:
   model:
     build:
       context: .
       dockerfile: docker/Dockerfile.model
     runtime: nvidia
+    env_file: .env  # Carica le credenziali
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - PYTHONPATH=/app
-      - MLFLOW_TRACKING_URI=/app/mlruns
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
     volumes:
-      - ./app:/app                           # tutto il codice sorgente
-      - ./data:/app/data                    # dataset raw + processed
-      - ./model/models:/app/model/models    # modelli salvati, tokenizer
+      - ./app:/app
+      - ./data:/app/data
+      - ./model/models:/app/model/models
       - ./mlruns:/app/mlruns
     working_dir: /app
     container_name: goemotions-model
@@ -36,7 +37,6 @@ services:
       - ./app/utils:/app/utils
       - ./app/model:/app/model
       - ./model/models:/app/model/models
-
     working_dir: /app
     container_name: goemotions-api
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000
@@ -64,4 +64,3 @@ services:
       - MLFLOW_BACKEND_STORE_URI=/mlruns
     working_dir: /app
     command: mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri /app/mlruns
-

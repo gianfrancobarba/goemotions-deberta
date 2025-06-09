@@ -8,6 +8,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig, default_data_collator
 
 import mlflow
+mlflow.autolog()
 from config.loader import CFG
 from utils.preprocess import load_and_preprocess_dataset
 from model.training.train_utils import CustomMultiLabelModel

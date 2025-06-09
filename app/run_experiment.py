@@ -1,6 +1,7 @@
 # run_experiment.py
 
 import mlflow
+mlflow.autolog()
 import logging
 from config.loader import CFG
 from model.training.train import train

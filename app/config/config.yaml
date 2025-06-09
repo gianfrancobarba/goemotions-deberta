@@ -130,7 +130,7 @@ surrogate:
   max_depth: 3
 
 mlflow:
-  tracking_uri: "file:/app/mlruns"
+  tracking_uri: "https://dagshub.com/gianfrancobarba/goemotions-deberta.mlflow"
   experiment_name: "goemotions_deberta_experiment_complete" 
   run_name: "goemotions_deberta_run_complete"             
 

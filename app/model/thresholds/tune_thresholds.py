@@ -8,6 +8,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from transformers import AutoTokenizer, AutoConfig, default_data_collator
 
 import mlflow
+mlflow.autolog()
 from config.loader import CFG
 from utils.mlflow_utils import start_or_continue_run
 from utils.preprocess import load_and_preprocess_dataset

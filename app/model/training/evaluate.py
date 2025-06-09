@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score, precision_score, recall_score
 import mlflow
+mlflow.autolog()
 
 from transformers import AutoTokenizer, AutoConfig
 

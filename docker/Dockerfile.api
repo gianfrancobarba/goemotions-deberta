@@ -14,6 +14,6 @@ RUN python -m nltk.downloader wordnet omw-1.4 averaged_perceptron_tagger average
 #COPY app/api ./app/api
 #COPY app/utils ./app/utils
 
-# 🔧 Entry point di default
+# Entry point di default
 CMD ["python"]
 # Avvio dell'applicazione API

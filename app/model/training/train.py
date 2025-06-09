@@ -15,6 +15,7 @@ warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 import logging
 import torch
 import mlflow
+mlflow.autolog()
 import mlflow.pytorch
 from transformers import (
     AutoTokenizer,
